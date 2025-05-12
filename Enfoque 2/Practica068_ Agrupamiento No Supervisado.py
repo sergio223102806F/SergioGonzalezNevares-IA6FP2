@@ -1,272 +1,214 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-  # Define la codificación del archivo (UTF-8)
 """
 Created on Sat Apr 26 16:31:14 2025
 
 @author: elvin
-"""
+"""  # Comentario de encabezado del script
 
-# Importación de bibliotecas necesarias
-import numpy as np  # Para operaciones numéricas eficientes
-from sklearn.neighbors import NearestNeighbors  # Para búsqueda de vecinos en DBSCAN
-import matplotlib.pyplot as plt  # Para visualización de resultados
-from sklearn.datasets import make_blobs, make_moons  # Para generar datos de prueba
-from scipy.spatial.distance import cdist  # Para cálculo de distancias
+# Importación de módulos necesarios
+import numpy as np  # Importa NumPy para operaciones numéricas
+from sklearn.neighbors import NearestNeighbors  # Importa el algoritmo de vecinos más cercanos para predicciones
+import matplotlib.pyplot as plt  # Importa Matplotlib para visualizar resultados
+from sklearn.datasets import make_blobs, make_moons  # Importa generadores de conjuntos de datos artificiales
+from scipy.spatial.distance import cdist  # Importa función para calcular distancias entre puntos
 
+# Definición de la clase KMeans
 class KMeans:
     """
-    Implementación completa del algoritmo K-Means para clustering particional.
+    Implementación completa del algoritmo K-Means para agrupamiento.
     """
     
     def __init__(self, n_clusters=3, max_iter=100, tol=1e-4, random_state=None):
         """
         Inicializa los parámetros del algoritmo K-Means.
-        
-        Args:
-            n_clusters (int): Número de grupos/clusters a formar
-            max_iter (int): Límite máximo de iteraciones
-            tol (float): Umbral de convergencia (cambio mínimo en centroides)
-            random_state (int): Semilla para reproducibilidad
         """
-        self.n_clusters = n_clusters  # El valor 'k' en k-means
-        self.max_iter = max_iter  # Prevenir iteraciones infinitas
-        self.tol = tol  # Tolerancia para declarar convergencia
-        self.random_state = random_state  # Para resultados reproducibles
-        self.centroids = None  # Almacenará los centroides finales
-        self.labels = None  # Asignaciones de cluster para cada punto
-        self.inertia_ = None  # Suma de distancias cuadradas intra-cluster
+        self.n_clusters = n_clusters  # Número de clusters a encontrar
+        self.max_iter = max_iter  # Número máximo de iteraciones permitidas
+        self.tol = tol  # Tolerancia para determinar convergencia
+        self.random_state = random_state  # Semilla para reproducibilidad
+        self.centroids = None  # Variable para almacenar los centroides calculados
+        self.labels = None  # Etiquetas asignadas a cada punto
+        self.inertia_ = None  # Suma de las distancias cuadradas mínimas (métrica de rendimiento)
     
     def _initialize_centroids(self, X):
         """
-        Inicialización inteligente de centroides usando el método k-means++.
-        
-        Args:
-            X (np.array): Datos de entrada (n_muestras, n_características)
-            
-        Returns:
-            np.array: Centroides iniciales (n_clusters, n_características)
+        Inicializa los centroides utilizando el método K-Means++.
         """
-        np.random.seed(self.random_state)  # Fijar semilla
-        centroids = [X[np.random.randint(X.shape[0])]]  # Primer centroide aleatorio
-        
-        for _ in range(1, self.n_clusters):
-            # Calcular distancias al cuadrado a los centroides existentes
-            distances = np.min(cdist(X, np.array(centroids), 'sqeuclidean'), axis=1)
-            # Convertir distancias a probabilidades de selección
-            probs = distances / distances.sum()
-            # Selección probabilística del siguiente centroide
-            cumulative_probs = probs.cumsum()
-            r = np.random.rand()
-            idx = np.where(cumulative_probs >= r)[0][0]
-            centroids.append(X[idx])
-        
-        return np.array(centroids)
-    
+        np.random.seed(self.random_state)  # Fija la semilla aleatoria
+        centroids = [X[np.random.randint(X.shape[0])]]  # Selecciona el primer centroide aleatoriamente
+
+        for _ in range(1, self.n_clusters):  # Itera para seleccionar el resto de los centroides
+            distances = np.min(cdist(X, np.array(centroids), 'sqeuclidean'), axis=1)  # Calcula la distancia al centroide más cercano
+            probs = distances / distances.sum()  # Calcula la probabilidad proporcional a la distancia
+            cumulative_probs = probs.cumsum()  # Suma acumulativa de probabilidades
+            r = np.random.rand()  # Genera un número aleatorio entre 0 y 1
+            idx = np.where(cumulative_probs >= r)[0][0]  # Encuentra el índice del nuevo centroide
+            centroids.append(X[idx])  # Agrega el nuevo centroide a la lista
+
+        return np.array(centroids)  # Devuelve los centroides inicializados como arreglo NumPy
+
     def fit(self, X):
         """
-        Ajusta el modelo k-means a los datos mediante iteraciones EM.
-        
-        Args:
-            X (np.array): Datos de entrada (n_muestras, n_características)
+        Ejecuta el algoritmo K-Means sobre los datos X.
         """
-        # 1. Inicialización inteligente de centroides
-        self.centroids = self._initialize_centroids(X)
-        
-        for iteration in range(self.max_iter):
-            # 2. Paso Expectation: Asignar puntos al cluster más cercano
-            distances = cdist(X, self.centroids, 'euclidean')
-            self.labels = np.argmin(distances, axis=1)
-            
-            # 3. Paso Maximization: Recalcular centroides
-            new_centroids = np.array([X[self.labels == k].mean(axis=0) 
-                                    for k in range(self.n_clusters)])
-            
-            # 4. Verificar convergencia (cambio pequeño en centroides)
-            centroid_shift = np.linalg.norm(new_centroids - self.centroids)
-            if centroid_shift < self.tol:
-                print(f"Convergencia alcanzada en iteración {iteration}")
-                break
-                
-            self.centroids = new_centroids
-        
-        # Calcular métrica de inercia (suma de distancias cuadradas)
-        self.inertia_ = np.sum(np.min(cdist(X, self.centroids, 'sqeuclidean'), axis=1))
-    
+        self.centroids = self._initialize_centroids(X)  # Inicializa los centroides
+
+        for iteration in range(self.max_iter):  # Itera hasta alcanzar el número máximo de iteraciones
+            distances = cdist(X, self.centroids, 'euclidean')  # Calcula distancias de cada punto a los centroides
+            self.labels = np.argmin(distances, axis=1)  # Asigna cada punto al centroide más cercano
+
+            new_centroids = np.array([X[self.labels == k].mean(axis=0) for k in range(self.n_clusters)])  # Recalcula los centroides
+
+            centroid_shift = np.linalg.norm(new_centroids - self.centroids)  # Calcula el desplazamiento de los centroides
+
+            if centroid_shift < self.tol:  # Verifica si el desplazamiento es menor a la tolerancia
+                print(f"Convergencia alcanzada en iteración {iteration}")  # Imprime mensaje de convergencia
+                break  # Termina el ciclo si hay convergencia
+
+            self.centroids = new_centroids  # Actualiza los centroides con los nuevos valores
+
+        self.inertia_ = np.sum(np.min(cdist(X, self.centroids, 'sqeuclidean'), axis=1))  # Calcula la inercia final
+
     def predict(self, X):
         """
-        Asigna nuevos puntos a los clusters aprendidos.
-        
-        Args:
-            X (np.array): Nuevos datos a clasificar
-            
-        Returns:
-            np.array: Etiquetas de cluster para cada punto
+        Asigna cada nuevo punto de X a su cluster más cercano.
         """
-        distances = cdist(X, self.centroids, 'euclidean')
-        return np.argmin(distances, axis=1)
+        distances = cdist(X, self.centroids, 'euclidean')  # Calcula distancias a los centroides
+        return np.argmin(distances, axis=1)  # Devuelve el índice del centroide más cercano
 
+# Definición de la clase DBSCAN
 class DBSCAN:
     """
-    Implementación del algoritmo DBSCAN para clustering basado en densidad.
+    Implementación del algoritmo DBSCAN desde cero.
     """
     
     def __init__(self, eps=0.5, min_samples=5):
         """
         Inicializa los parámetros de DBSCAN.
-        
-        Args:
-            eps (float): Radio de la vecindad para considerar puntos cercanos
-            min_samples (int): Mínimo de puntos para formar un cluster denso
         """
-        self.eps = eps  # Radio de búsqueda de vecinos
-        self.min_samples = min_samples  # Puntos mínimos para ser núcleo
-        self.labels = None  # Resultados del clustering
-    
+        self.eps = eps  # Radio máximo para considerar vecinos
+        self.min_samples = min_samples  # Mínimo de puntos para formar un núcleo
+        self.labels = None  # Etiquetas asignadas a cada punto
+
     def _find_neighbors(self, X, point_idx):
         """
-        Encuentra todos los puntos dentro del radio eps del punto dado.
-        
-        Args:
-            X (np.array): Todos los puntos de datos
-            point_idx (int): Índice del punto central
-            
-        Returns:
-            np.array: Índices de los puntos vecinos
+        Encuentra los vecinos dentro del radio eps del punto dado.
         """
-        distances = np.linalg.norm(X - X[point_idx], axis=1)
-        return np.where(distances <= self.eps)[0]
-    
+        distances = np.linalg.norm(X - X[point_idx], axis=1)  # Calcula distancias euclidianas
+        return np.where(distances <= self.eps)[0]  # Retorna índices de los vecinos dentro del radio
+
     def fit(self, X):
         """
-        Ejecuta el algoritmo DBSCAN en los datos de entrada.
-        
-        Args:
-            X (np.array): Datos a clusterizar (n_muestras, n_características)
+        Ejecuta el algoritmo DBSCAN sobre los datos X.
         """
-        n_samples = X.shape[0]
-        self.labels = np.full(n_samples, -1)  # -1 indica ruido/no asignado
-        cluster_id = 0  # Contador de clusters
-        
-        for i in range(n_samples):
-            if self.labels[i] != -1:  # Punto ya procesado
+        n_samples = X.shape[0]  # Obtiene el número de muestras
+        self.labels = np.full(n_samples, -1)  # Inicializa todas las etiquetas como ruido (-1)
+        cluster_id = 0  # Inicializa el ID del primer cluster
+
+        for i in range(n_samples):  # Itera sobre cada punto
+            if self.labels[i] != -1:  # Si ya fue etiquetado, lo salta
                 continue
-                
-            # Encontrar todos los vecinos en radio eps
-            neighbors = self._find_neighbors(X, i)
-            
-            if len(neighbors) < self.min_samples:  # Punto es ruido
-                self.labels[i] = -1
+
+            neighbors = self._find_neighbors(X, i)  # Encuentra vecinos del punto i
+
+            if len(neighbors) < self.min_samples:  # Si no es un punto núcleo
+                self.labels[i] = -1  # Se considera ruido
                 continue
-                
-            # Comenzar nuevo cluster
-            self.labels[i] = cluster_id
-            seed_set = set(neighbors) - {i}  # Puntos por expandir
-            
-            # Expansión del cluster
-            while seed_set:
-                j = seed_set.pop()
-                
-                if self.labels[j] == -1:  # Cambiar ruido a punto frontera
-                    self.labels[j] = cluster_id
-                    
-                if self.labels[j] != -1:  # Punto ya pertenece a un cluster
-                    continue
-                    
-                self.labels[j] = cluster_id
-                j_neighbors = self._find_neighbors(X, j)
-                
-                if len(j_neighbors) >= self.min_samples:  # Punto es núcleo
-                    seed_set.update(j_neighbors)  # Expandir búsqueda
-            
-            cluster_id += 1  # Pasar al siguiente cluster
-    
+
+            self.labels[i] = cluster_id  # Asigna el cluster actual al punto
+            seed_set = set(neighbors) - {i}  # Conjunto de puntos para expandir el cluster
+
+            while seed_set:  # Mientras haya puntos por expandir
+                j = seed_set.pop()  # Extrae un punto del conjunto
+
+                if self.labels[j] == -1:
+                    self.labels[j] = cluster_id  # Cambia de ruido a frontera
+
+                if self.labels[j] != -1:
+                    continue  # Ya fue etiquetado
+
+                self.labels[j] = cluster_id  # Asigna el punto al cluster
+                j_neighbors = self._find_neighbors(X, j)  # Busca vecinos del nuevo punto
+
+                if len(j_neighbors) >= self.min_samples:
+                    seed_set.update(j_neighbors)  # Agrega nuevos vecinos al conjunto
+
+            cluster_id += 1  # Aumenta el ID del cluster
+
     def predict(self, X):
         """
-        Para nuevos datos, asigna al cluster del vecino más cercano.
-        
-        Args:
-            X (np.array): Nuevos datos a clasificar
-            
-        Returns:
-            np.array: Etiquetas predichas
+        Predice etiquetas para nuevos puntos según su vecino más cercano del entrenamiento.
         """
-        if not hasattr(self, 'X_train'):
-            self.X_train = X
-            return self.labels
-            
-        # Encontrar vecino más cercano en datos de entrenamiento
-        knn = NearestNeighbors(n_neighbors=1)
-        knn.fit(self.X_train)
-        distances, indices = knn.kneighbors(X)
-        return self.labels[indices.flatten()]
+        if not hasattr(self, 'X_train'):  # Si no se ha guardado X
+            self.X_train = X  # Almacena los datos de entrenamiento
+            return self.labels  # Devuelve las etiquetas actuales
 
+        knn = NearestNeighbors(n_neighbors=1)  # Inicializa búsqueda de 1 vecino más cercano
+        knn.fit(self.X_train)  # Ajusta con los datos de entrenamiento
+        distances, indices = knn.kneighbors(X)  # Encuentra el vecino más cercano para cada punto
+        return self.labels[indices.flatten()]  # Devuelve etiquetas de los vecinos más cercanos
+
+# Función para visualizar los resultados de clustering
 def evaluate_clustering(X, labels, algorithm_name, centroids=None):
     """
-    Visualiza los resultados del clustering con matplotlib.
-    
-    Args:
-        X (np.array): Datos originales
-        labels (np.array): Asignaciones de cluster
-        algorithm_name (str): Nombre del algoritmo para el título
-        centroids (np.array): Centroides (opcional, para K-Means)
+    Visualiza el resultado del clustering con etiquetas de color.
     """
-    plt.figure(figsize=(10, 6))
-    
-    # Graficar centroides si están disponibles
-    if centroids is not None:
+    plt.figure(figsize=(10, 6))  # Crea una nueva figura con tamaño 10x6
+
+    if centroids is not None:  # Si se proporcionaron centroides
         plt.scatter(centroids[:, 0], centroids[:, 1], marker='x', 
-                   s=200, linewidths=3, color='r', label='Centroides')
-    
-    # Graficar puntos coloreados por cluster
+                   s=200, linewidths=3, color='r', label='Centroides')  # Dibuja los centroides
+
     scatter = plt.scatter(X[:, 0], X[:, 1], c=labels, cmap='viridis', 
-                         s=50, alpha=0.7, label='Datos')
-    
-    # Configuración del gráfico
-    plt.title(f'Agrupamiento con {algorithm_name}')
-    plt.xlabel('Característica 1')
-    plt.ylabel('Característica 2')
-    plt.grid(True)
-    
-    # Mostrar leyenda si hay elementos especiales
-    if centroids is not None or -1 in labels:
-        handles, _ = scatter.legend_elements()
-        if -1 in labels:  # Para DBSCAN (ruido)
+                         s=50, alpha=0.7, label='Datos')  # Dibuja los puntos con colores por cluster
+
+    plt.title(f'Agrupamiento con {algorithm_name}')  # Título del gráfico
+    plt.xlabel('Característica 1')  # Etiqueta eje X
+    plt.ylabel('Característica 2')  # Etiqueta eje Y
+    plt.grid(True)  # Muestra la rejilla
+
+    if centroids is not None or -1 in labels:  # Si hay centroides o puntos de ruido
+        handles, _ = scatter.legend_elements()  # Obtiene los elementos para la leyenda
+        if -1 in labels:  # Si hay puntos de ruido
             handles.append(plt.Line2D([0], [0], marker='o', color='w', 
-                          markerfacecolor='gray', markersize=10, label='Ruido'))
-        plt.legend(handles=handles)
-    
-    plt.show()
+                          markerfacecolor='gray', markersize=10, label='Ruido'))  # Añade ícono de ruido
+        plt.legend(handles=handles)  # Muestra la leyenda
+
+    plt.show()  # Muestra el gráfico
 
 # Bloque principal de ejecución
-if __name__ == "__main__":
-    np.random.seed(42)  # Para reproducibilidad
-    
-    # Generar datos de prueba
+if __name__ == "__main__":  # Se ejecuta solo si este archivo es el principal
+    np.random.seed(42)  # Fija la semilla para resultados reproducibles
+
+    # Genera datos artificiales con estructura esférica
     X_blobs, y_blobs = make_blobs(n_samples=300, centers=3, 
                                  cluster_std=0.8, random_state=42)
+
+    # Genera datos artificiales con forma de lunas
     X_moons, y_moons = make_moons(n_samples=300, noise=0.05, random_state=42)
-    
-    # Demostración de K-Means (ideal para datos esféricos)
-    print("=== Ejemplo 1: K-Means en datos esféricos ===")
-    kmeans = KMeans(n_clusters=3, random_state=42)
-    kmeans.fit(X_blobs)
-    evaluate_clustering(X_blobs, kmeans.labels, "K-Means", kmeans.centroids)
-    print(f"Inercia (suma de distancias cuadradas): {kmeans.inertia_:.2f}")
-    
-    # K-Means en datos no esféricos (resultados subóptimos)
-    print("\n=== Ejemplo 2: K-Means en datos no esféricos ===")
-    kmeans_moons = KMeans(n_clusters=2, random_state=42)
-    kmeans_moons.fit(X_moons)
+
+    # Prueba 1: K-Means sobre datos esféricos
+    print("=== Ejemplo 1: K-Means en datos esféricos ===")  # Imprime título del ejemplo
+    kmeans = KMeans(n_clusters=3, random_state=42)  # Instancia KMeans
+    kmeans.fit(X_blobs)  # Ajusta el modelo a los datos
+    evaluate_clustering(X_blobs, kmeans.labels, "K-Means", kmeans.centroids)  # Visualiza resultado
+    print(f"Inercia (suma de distancias cuadradas): {kmeans.inertia_:.2f}")  # Muestra la inercia
+
+    # Prueba 2: K-Means sobre datos no esféricos
+    print("\n=== Ejemplo 2: K-Means en datos no esféricos ===")  # Título
+    kmeans_moons = KMeans(n_clusters=2, random_state=42)  # Instancia KMeans con 2 clusters
+    kmeans_moons.fit(X_moons)  # Ajusta a datos lunares
     evaluate_clustering(X_moons, kmeans_moons.labels, 
-                       "K-Means en datos no esféricos", kmeans_moons.centroids)
-    
-    # Demostración de DBSCAN (ideal para datos complejos)
-    print("\n=== Ejemplo 3: DBSCAN en datos complejos ===")
-    dbscan = DBSCAN(eps=0.2, min_samples=5)
-    dbscan.fit(X_moons)
-    evaluate_clustering(X_moons, dbscan.labels, "DBSCAN")
-    
-    # DBSCAN en datos esféricos
-    print("\n=== Ejemplo 4: DBSCAN en datos esféricos ===")
-    dbscan_blobs = DBSCAN(eps=0.8, min_samples=10)
-    dbscan_blobs.fit(X_blobs)
-    evaluate_clustering(X_blobs, dbscan_blobs.labels, "DBSCAN en datos esféricos")
+                       "K-Means en datos no esféricos", kmeans_moons.centroids)  # Visualiza
+
+    # Prueba 3: DBSCAN sobre datos no esféricos
+    print("\n=== Ejemplo 3: DBSCAN en datos complejos ===")  # Título
+    dbscan = DBSCAN(eps=0.2, min_samples=5)  # Instancia DBSCAN
+    dbscan.fit(X_moons)  # Ajusta a datos lunares
+    evaluate_clustering(X_moons, dbscan.labels, "DBSCAN")  # Visualiza
+
+    # Prueba 4: DBSCAN sobre datos esféricos
+    print("\n=== Ejemplo 4: DBSCAN en datos esféricos ===")  # Título
+    dbscan_blobs = DBSCAN(eps=0.8, min_samples=10)  # Instancia DBSCAN con parámetros diferentes
+    dbscan_blobs.fit(X_blobs)  # Ajusta a blobs
+    evaluate_clustering(X_blobs, dbscan_blobs.labels, "DBSCAN en datos esféricos")  # Visualiza

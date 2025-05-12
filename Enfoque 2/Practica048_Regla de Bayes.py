@@ -1,149 +1,119 @@
+# Importación de la librería numpy para operaciones numéricas
+import numpy as np
+# Importación de tipos para anotaciones de función
+from typing import Dict, List, Tuple
+# Importación de defaultdict para diccionarios con valores por defecto
+from collections import defaultdict
 
-
-
-# Importación de librerías necesarias
-import numpy as np  # Para operaciones numéricas
-from typing import Dict, List, Tuple  # Para anotaciones de tipo
-from collections import defaultdict  # Para diccionarios con valores por defecto
-
+# Definición de la clase principal para cálculo de probabilidades bayesianas
 class BayesRuleCalculator:
+    # Método constructor de la clase
     def __init__(self):
-        """Inicializa el calculador de la Regla de Bayes"""
-        # Diccionario para almacenar conteos de eventos (hipótesis)
+        # Diccionario para contar ocurrencias de cada hipótesis
         self.hypothesis_counts = defaultdict(int)
-        # Diccionario para almacenar conteos de evidencias dado cada hipótesis
+        # Diccionario anidado para contar evidencias por hipótesis
         self.evidence_counts = defaultdict(lambda: defaultdict(int))
-        # Contador total de observaciones
+        # Contador total de observaciones registradas
         self.total_observations = 0
     
+    # Método para agregar una nueva observación al sistema
     def add_observation(self, hypothesis: str, evidence: str) -> None:
-        """
-        Registra una observación de una hipótesis con su evidencia correspondiente.
-        
-        Args:
-            hypothesis: Hipótesis observada (categoría o clase)
-            evidence: Evidencia observada (característica o síntoma)
-        """
-        # Incrementa el contador para la hipótesis
+        # Incrementa el contador para la hipótesis dada
         self.hypothesis_counts[hypothesis] += 1
-        # Incrementa el contador para la evidencia dada la hipótesis
+        # Incrementa el contador para la evidencia bajo esta hipótesis
         self.evidence_counts[hypothesis][evidence] += 1
-        # Incrementa el contador total
+        # Incrementa el contador total de observaciones
         self.total_observations += 1
     
+    # Método para calcular probabilidad a priori P(H)
     def prior_probability(self, hypothesis: str) -> float:
-        """
-        Calcula la probabilidad a priori P(H) de una hipótesis.
-        
-        Args:
-            hypothesis: Hipótesis a calcular
-            
-        Returns:
-            Probabilidad a priori estimada
-        """
+        # Verifica si hay observaciones para evitar división por cero
         if self.total_observations == 0:
-            return 0.0  # Evita división por cero
+            # Retorna 0 si no hay observaciones
+            return 0.0
+        # Calcula P(H) = count(H) / total_observations
         return self.hypothesis_counts[hypothesis] / self.total_observations
     
+    # Método para calcular verosimilitud P(E|H)
     def likelihood(self, evidence: str, hypothesis: str) -> float:
-        """
-        Calcula la verosimilitud P(E|H) de la evidencia dada la hipótesis.
-        
-        Args:
-            evidence: Evidencia observada
-            hypothesis: Hipótesis dada
-            
-        Returns:
-            Verosimilitud estimada
-        """
+        # Verifica si la hipótesis ha sido observada
         if self.hypothesis_counts[hypothesis] == 0:
-            return 0.0  # Evita división por cero
+            # Retorna 0 si la hipótesis nunca ocurrió
+            return 0.0
+        # Calcula P(E|H) = count(E∧H) / count(H)
         return self.evidence_counts[hypothesis][evidence] / self.hypothesis_counts[hypothesis]
     
+    # Método para calcular probabilidad marginal P(E)
     def marginal_evidence_probability(self, evidence: str) -> float:
-        """
-        Calcula la probabilidad marginal de la evidencia P(E).
-        
-        Args:
-            evidence: Evidencia a calcular
-            
-        Returns:
-            Probabilidad marginal estimada
-        """
-        if self.total_observations == 0:
-            return 0.0
-        # Suma P(E|H_i)*P(H_i) para todas las hipótesis
+        # Inicializa el acumulador en 0.0
         total = 0.0
+        # Itera sobre todas las hipótesis registradas
         for hypo in self.hypothesis_counts:
+            # Acumula P(E|H_i)*P(H_i) para cada hipótesis
             total += self.likelihood(evidence, hypo) * self.prior_probability(hypo)
+        # Retorna la suma total P(E)
         return total
     
+    # Método para calcular probabilidad posterior P(H|E)
     def posterior_probability(self, hypothesis: str, evidence: str) -> float:
-        """
-        Calcula la probabilidad posterior P(H|E) usando la Regla de Bayes.
-        
-        Args:
-            hypothesis: Hipótesis a evaluar
-            evidence: Evidencia observada
-            
-        Returns:
-            Probabilidad posterior estimada
-        """
-        # P(E|H)
+        # Obtiene P(E|H) del método likelihood
         likelihood = self.likelihood(evidence, hypothesis)
-        # P(H)
+        # Obtiene P(H) del método prior_probability
         prior = self.prior_probability(hypothesis)
-        # P(E)
+        # Obtiene P(E) del método marginal_evidence_probability
         marginal = self.marginal_evidence_probability(evidence)
         
+        # Verifica que P(E) no sea cero para evitar división por cero
         if marginal == 0:
-            return 0.0  # Evita división por cero
+            # Retorna 0 si no hay evidencia registrada
+            return 0.0
         
-        # Aplica la Regla de Bayes: P(H|E) = P(E|H)*P(H)/P(E)
+        # Aplica la fórmula de Bayes: P(H|E) = P(E|H)*P(H)/P(E)
         return (likelihood * prior) / marginal
     
+    # Método para actualizar probabilidades con múltiples evidencias
     def update_with_evidence(self, evidence_list: List[str]) -> Dict[str, float]:
-        """
-        Actualiza las probabilidades secuencialmente con múltiples evidencias.
-        
-        Args:
-            evidence_list: Lista de evidencias observadas en orden
-            
-        Returns:
-            Probabilidades posteriores finales
-        """
-        # Comienza con las probabilidades a priori
+        # Inicializa posteriores con probabilidades a priori
         posteriors = {hypo: self.prior_probability(hypo) for hypo in self.hypothesis_counts}
         
-        # Actualiza secuencialmente con cada evidencia
+        # Itera sobre cada evidencia en la lista proporcionada
         for evidence in evidence_list:
+            # Prepara diccionario para nuevos posteriores
             new_posteriors = {}
+            # Inicializa acumulador para normalización
             total = 0.0
             
-            # Calcula el denominador (probabilidad marginal de la evidencia)
+            # Calcula el denominador para normalización
             for hypo in posteriors:
+                # Acumula P(E|H)*P(H) para todas las hipótesis
                 total += self.likelihood(evidence, hypo) * posteriors[hypo]
             
-            # Calcula los nuevos posteriores
+            # Calcula los nuevos valores posteriores
             for hypo in posteriors:
+                # Verifica que el total no sea cero
                 if total > 0:
+                    # Calcula P(H|E) normalizado
                     new_posteriors[hypo] = (self.likelihood(evidence, hypo) * posteriors[hypo]) / total
                 else:
+                    # Asigna 0 si no hay evidencia compatible
                     new_posteriors[hypo] = 0.0
             
+            # Actualiza los posteriores para la siguiente evidencia
             posteriors = new_posteriors
         
+        # Retorna los posteriores finales después de todas las evidencias
         return posteriors
 
 
-# Ejemplo de uso médico
+# Bloque principal de ejecución del programa
 if __name__ == "__main__":
-    print("=== Ejemplo de la Regla de Bayes en Diagnóstico Médico ===\n")
+    # Mensaje de inicio del programa
+    print("=== Sistema de Diagnóstico Médico con Bayes ===\n")
     
-    # Crear instancia del calculador
+    # Crea una instancia del calculador bayesiano
     brc = BayesRuleCalculator()
     
-    # Datos de entrenamiento: (enfermedad, síntoma)
+    # Datos de entrenamiento: pares (enfermedad, síntoma)
     training_data = [
         ('gripe', 'fiebre'), ('gripe', 'fiebre'), ('gripe', 'tos'),
         ('resfriado', 'tos'), ('resfriado', 'congestión'), ('resfriado', 'congestión'),
@@ -151,48 +121,63 @@ if __name__ == "__main__":
         ('gripe', 'fiebre'), ('resfriado', 'tos'), ('alergia', 'congestión')
     ]
     
-    # Agregar datos de entrenamiento
+    # Agrega cada observación al calculador bayesiano
     for disease, symptom in training_data:
         brc.add_observation(disease, symptom)
     
-    # 1. Mostrar probabilidades a priori
-    print("1. Probabilidades a priori de las enfermedades:")
-    diseases = brc.hypothesis_counts.keys()
-    for disease in diseases:
+    # 1. Muestra las probabilidades a priori de cada enfermedad
+    print("1. Probabilidades a priori:")
+    # Itera sobre todas las enfermedades registradas
+    for disease in brc.hypothesis_counts:
+        # Muestra P(Enfermedad) con 3 decimales
         print(f"P({disease}) = {brc.prior_probability(disease):.3f}")
     
-    # 2. Mostrar verosimilitudes de síntomas
-    print("\n2. Verosimilitudes de síntomas para cada enfermedad:")
+    # 2. Muestra las verosimilitudes P(Síntoma|Enfermedad)
+    print("\n2. Verosimilitudes P(Síntoma|Enfermedad):")
+    # Obtiene todos los síntomas únicos del conjunto de entrenamiento
     symptoms = set(sym for _, sym in training_data)
-    for disease in diseases:
-        print(f"\nPara {disease}:")
+    # Itera sobre cada enfermedad
+    for disease in brc.hypothesis_counts:
+        # Muestra nombre de la enfermedad
+        print(f"\n{disease}:")
+        # Itera sobre cada síntoma
         for symptom in symptoms:
+            # Muestra P(Síntoma|Enfermedad) con 3 decimales
             print(f"  P({symptom}|{disease}) = {brc.likelihood(symptom, disease):.3f}")
     
-    # 3. Calcular probabilidad posterior para un síntoma
-    print("\n3. Probabilidad posterior dada fiebre:")
-    for disease in diseases:
-        posterior = brc.posterior_probability(disease, 'fiebre')
-        print(f"P({disease}|fiebre) = {posterior:.3f}")
+    # 3. Ejemplo de diagnóstico con solo fiebre
+    print("\n3. Diagnóstico para paciente con fiebre:")
+    # Itera sobre cada enfermedad
+    for disease in brc.hypothesis_counts:
+        # Calcula P(Enfermedad|fiebre)
+        prob = brc.posterior_probability(disease, 'fiebre')
+        # Muestra el resultado con 3 decimales
+        print(f"P({disease}|fiebre) = {prob:.3f}")
     
-    # 4. Actualización secuencial con múltiples síntomas
-    print("\n4. Actualización secuencial con ['congestión', 'tos']:")
-    final_posteriors = brc.update_with_evidence(['congestión', 'tos'])
-    for disease, prob in final_posteriors.items():
+    # 4. Diagnóstico con múltiples síntomas (congestión y tos)
+    print("\n4. Diagnóstico para paciente con congestión y tos:")
+    # Calcula probabilidades posteriores para ambas evidencias
+    final_probs = brc.update_with_evidence(['congestión', 'tos'])
+    # Itera sobre los resultados
+    for disease, prob in final_probs.items():
+        # Muestra cada probabilidad con 3 decimales
         print(f"P({disease}|evidencia) = {prob:.3f}")
     
-    # 5. Ejemplo completo con nuevos datos
-    print("\n5. Ejemplo completo con nuevos síntomas:")
+    # 5. Caso de prueba completo con fiebre y tos
+    print("\n5. Caso de prueba con fiebre y tos:")
+    # Define los síntomas a evaluar
     test_symptoms = ['fiebre', 'tos']
-    print(f"Síntomas observados: {test_symptoms}")
+    # Realiza el cálculo bayesiano
+    diagnosis = brc.update_with_evidence(test_symptoms)
     
-    # Calcular probabilidades posteriores
-    posteriors = brc.update_with_evidence(test_symptoms)
-    
-    # Mostrar resultados
-    most_likely = max(posteriors.items(), key=lambda x: x[1])
+    # Muestra encabezado de resultados
     print("\nResultados del diagnóstico:")
-    for disease, prob in posteriors.items():
-        print(f"- {disease}: {prob*100:.1f}% probabilidad")
+    # Itera sobre cada enfermedad y su probabilidad
+    for disease, prob in diagnosis.items():
+        # Muestra la probabilidad en porcentaje con 1 decimal
+        print(f"- {disease}: {prob*100:.1f}%")
     
-    print(f"\nDiagnóstico más probable: {most_likely[0]} ({most_likely[1]*100:.1f}% probabilidad)")
+    # Encuentra el diagnóstico más probable
+    best_diagnosis = max(diagnosis.items(), key=lambda x: x[1])
+    # Muestra el diagnóstico más probable con su porcentaje
+    print(f"\nDiagnóstico más probable: {best_diagnosis[0]} ({best_diagnosis[1]*100:.1f}%)")

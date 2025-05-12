@@ -1,172 +1,197 @@
 # -*- coding: utf-8 -*-
 """
+Script para modelo de lenguaje probabilístico con capacidades de pronunciación
 Created on Wed Apr  9 14:51:17 2025
-
 @author: elvin
 """
 
-import numpy as np
-import tensorflow as tf
-import tensorflow_probability as tfp
-from tensorflow.keras.layers import Input, Embedding, LSTM, Dense, Lambda
-from tensorflow.keras.models import Model
-from collections import defaultdict, Counter
-import matplotlib.pyplot as plt
+# Importación de librerías numéricas y de deep learning
+import numpy as np  # Para operaciones numéricas
+import tensorflow as tf  # Framework de deep learning
+import tensorflow_probability as tfp  # Extensiones probabilísticas de TensorFlow
 
+# Importación de capas y modelos de Keras
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense, Lambda  # Capas de red neuronal
+from tensorflow.keras.models import Model  # Clase para construir modelos
+
+# Importación de estructuras de datos y visualización
+from collections import defaultdict, Counter  # Para conteos y mapeos
+import matplotlib.pyplot as plt  # Para visualización
+
+# Alias corto para distribuciones de TensorFlow Probability
 tfd = tfp.distributions
 
 class ProbabilisticLanguageModel:
     def __init__(self, vocab, phonemes, word_to_phonemes, max_seq_length):
         """
-        vocab: Lista de palabras en el vocabulario
-        phonemes: Lista de fonemas posibles
-        word_to_phonemes: Mapeo de palabras a secuencias fonéticas
-        max_seq_length: Longitud máxima de secuencias
+        Inicializa el modelo probabilístico de lenguaje y pronunciación
+        
+        Args:
+            vocab: Lista de palabras en el vocabulario
+            phonemes: Lista de fonemas posibles
+            word_to_phonemes: Diccionario {palabra: [fonemas]}
+            max_seq_length: Máxima longitud de secuencias de entrada
         """
-        self.vocab = vocab
-        self.phonemes = phonemes
-        self.word_to_phonemes = word_to_phonemes
-        self.max_seq_length = max_seq_length
+        # Vocabulario y datos lingüísticos
+        self.vocab = vocab  # Lista de palabras conocidas
+        self.phonemes = phonemes  # Lista de fonemas posibles
+        self.word_to_phonemes = word_to_phonemes  # Mapeo palabra-fonemas
+        self.max_seq_length = max_seq_length  # Longitud máxima de secuencias
         
-        # Mapeos
-        self.word_to_idx = {w:i for i,w in enumerate(vocab)}
-        self.idx_to_word = {i:w for i,w in enumerate(vocab)}
-        self.phoneme_to_idx = {p:i for i,p in enumerate(phonemes)}
+        # Mapeos de palabras y fonemas a índices numéricos
+        self.word_to_idx = {w:i for i,w in enumerate(vocab)}  # Diccionario palabra->índice
+        self.idx_to_word = {i:w for i,w in enumerate(vocab)}  # Diccionario índice->palabra
+        self.phoneme_to_idx = {p:i for i,p in enumerate(phonemes)}  # Diccionario fonema->índice
         
-        # Hiperparámetros
-        self.embed_dim = 64
-        self.lstm_units = 128
-        self.hidden_dim = 64
+        # Hiperparámetros del modelo
+        self.embed_dim = 64  # Dimensión del embedding de palabras
+        self.lstm_units = 128  # Unidades en capa LSTM
+        self.hidden_dim = 64  # Dimensión de capa oculta
         
-        # Construir modelos
-        self.language_model = self.build_language_model()
-        self.pronunciation_model = self.build_pronunciation_model()
+        # Construcción de los modelos
+        self.language_model = self.build_language_model()  # Modelo de lenguaje
+        self.pronunciation_model = self.build_pronunciation_model()  # Modelo de pronunciación
         
-        # Estadísticas del lenguaje
-        self.word_freq = defaultdict(int)
-        self.phoneme_transitions = self.calculate_transition_probs()
+        # Estadísticas lingüísticas
+        self.word_freq = defaultdict(int)  # Frecuencias de palabras
+        self.phoneme_transitions = self.calculate_transition_probs()  # Probabilidades de transición fonémica
     
     def build_language_model(self):
-        """Modelo de lenguaje neuronal probabilístico"""
+        """Construye el modelo neuronal de lenguaje probabilístico"""
+        # Capa de entrada para índices de palabras
         inputs = Input(shape=(self.max_seq_length,))
         
-        # Embedding de palabras
+        # Capa de embedding para representar palabras como vectores
         x = Embedding(len(self.vocab), self.embed_dim)(inputs)
         
-        # Capa LSTM para contexto temporal
+        # Capa LSTM para capturar dependencias temporales
         x = LSTM(self.lstm_units, return_sequences=True)(x)
         
-        # Distribución de probabilidad sobre el vocabulario
+        # Capa densa con softmax para distribución de probabilidad
         word_probs = Dense(len(self.vocab), activation='softmax')(x)
         
-        # Distribución categórica
+        # Función para convertir salida en distribución probabilística
         def output_distribution(params):
             return tfd.Categorical(probs=params)
         
+        # Capa Lambda para aplicar la conversión a distribución
         outputs = Lambda(output_distribution)(word_probs)
         
+        # Construcción del modelo completo
         model = Model(inputs=inputs, outputs=outputs)
         
+        # Función de pérdida (negative log-likelihood)
         def nll_loss(y_true, y_pred):
             return -y_pred.log_prob(y_true)
         
+        # Compilación del modelo con optimizador Adam
         model.compile(optimizer='adam', loss=nll_loss)
         
         return model
     
     def build_pronunciation_model(self):
-        """Modelo de pronunciación palabra-a-fonemas"""
+        """Construye modelo para mapear palabras a fonemas"""
+        # Capa de entrada para índices de palabras
         inputs = Input(shape=(self.max_seq_length,))
         
-        # Embedding de palabras
+        # Capa de embedding para palabras
         x = Embedding(len(self.vocab), self.embed_dim)(inputs)
         
-        # Capa LSTM
+        # Capa LSTM para secuencias fonéticas
         x = LSTM(self.lstm_units, return_sequences=True)(x)
         
-        # Capa oculta
+        # Capa densa oculta con activación ReLU
         x = Dense(self.hidden_dim, activation='relu')(x)
         
-        # Salida para cada paso de tiempo
+        # Capa de salida con softmax para probabilidades de fonemas
         phoneme_probs = Dense(len(self.phonemes), activation='softmax')(x)
         
-        # Distribución de salida
+        # Conversión a distribución probabilística
         def output_distribution(params):
             return tfd.Categorical(probs=params)
         
+        # Capa Lambda para salida distribucional
         outputs = Lambda(output_distribution)(phoneme_probs)
         
+        # Construcción del modelo completo
         model = Model(inputs=inputs, outputs=outputs)
         
+        # Función de pérdida (negative log-likelihood)
         def nll_loss(y_true, y_pred):
             return -y_pred.log_prob(y_true)
         
+        # Compilación del modelo
         model.compile(optimizer='adam', loss=nll_loss)
         
         return model
     
     def calculate_transition_probs(self):
         """Calcula probabilidades de transición entre fonemas"""
-        transitions = defaultdict(Counter)
+        transitions = defaultdict(Counter)  # Diccionario para conteos de transiciones
         
+        # Contar transiciones entre fonemas en todas las palabras
         for word, phonemes in self.word_to_phonemes.items():
             for i in range(len(phonemes)-1):
-                current = phonemes[i]
-                next_p = phonemes[i+1]
-                transitions[current][next_p] += 1
+                current = phonemes[i]  # Fonema actual
+                next_p = phonemes[i+1]  # Fonema siguiente
+                transitions[current][next_p] += 1  # Incrementar conteo
         
-        # Normalizar a probabilidades
+        # Normalizar conteos a probabilidades
         probs = {}
         for current, counts in transitions.items():
-            total = sum(counts.values())
+            total = sum(counts.values())  # Total de ocurrencias del fonema actual
             probs[current] = {next_p: count/total for next_p, count in counts.items()}
         
         return probs
     
     def update_language_stats(self, text_corpus):
-        """Actualiza estadísticas del lenguaje con nuevo texto"""
+        """Actualiza estadísticas de frecuencia de palabras"""
         for sentence in text_corpus:
-            words = sentence.split()
+            words = sentence.split()  # Dividir texto en palabras
             for word in words:
-                self.word_freq[word] += 1
+                self.word_freq[word] += 1  # Incrementar conteo de palabra
     
     def predict_next_word(self, context_words, num_candidates=5):
-        """Predice siguiente palabra dado un contexto"""
-        # Convertir contexto a índices
+        """Predice la siguiente palabra dado un contexto"""
+        # Convertir palabras de contexto a índices
         context_idx = [self.word_to_idx[w] for w in context_words if w in self.word_to_idx]
         
+        # Si no hay contexto válido, devolver palabras más frecuentes
         if not context_idx:
-            # Si no hay contexto, devolver palabras más frecuentes
             return sorted(self.word_freq.items(), key=lambda x: -x[1])[:num_candidates]
         
-        # Padding del contexto
+        # Aplicar padding al contexto para longitud fija
         context_padded = tf.keras.preprocessing.sequence.pad_sequences(
             [context_idx], maxlen=self.max_seq_length, padding='pre')
         
-        # Obtener predicciones
+        # Obtener predicciones del modelo
         preds = self.language_model(context_padded).mean().numpy()[0][-1]
         
-        # Obtener candidatos más probables
+        # Obtener índices de las palabras más probables
         top_indices = np.argsort(preds)[-num_candidates:][::-1]
+        
+        # Devolver palabras y sus probabilidades
         return [(self.idx_to_word[i], preds[i]) for i in top_indices]
     
     def word_to_phoneme_prob(self, word):
-        """Convierte palabra a fonemas con probabilidades"""
+        """Convierte una palabra a su secuencia fonética con probabilidades"""
+        # Verificar si la palabra está en el vocabulario
         if word not in self.word_to_idx:
             return None
         
-        # Obtener índice de la palabra
+        # Obtener índice de la palabra y aplicar padding
         word_idx = self.word_to_idx[word]
         word_input = tf.keras.preprocessing.sequence.pad_sequences(
             [[word_idx]], maxlen=self.max_seq_length)
         
-        # Obtener distribución de fonemas
+        # Obtener distribución de fonemas del modelo
         phoneme_dist = self.pronunciation_model(word_input).mean().numpy()[0]
         
-        # Secuencia más probable
+        # Construir secuencia más probable de fonemas
         phoneme_seq = []
         for t in range(phoneme_dist.shape[0]):
-            if np.max(phoneme_dist[t]) > 0.1:  # Umbral
+            # Usar umbral para descartar predicciones débiles
+            if np.max(phoneme_dist[t]) > 0.1:
                 phoneme_idx = np.argmax(phoneme_dist[t])
                 phoneme_seq.append(self.phonemes[phoneme_idx])
         
@@ -174,8 +199,13 @@ class ProbabilisticLanguageModel:
     
     def recognize_speech(self, audio_features, acoustic_model, context=None, beam_width=3):
         """
-        Reconoce habla integrando:
-        - audio_features: Características acústicas del modelo acústico
-        - acoustic_model: Modelo que mapea audio a fonemas
-        - context: Contexto lingüístico previo
-        - beam_width: Ancho del beam search
+        Integra modelo acústico y de lenguaje para reconocimiento de voz
+        
+        Args:
+            audio_features: Características acústicas extraídas del audio
+            acoustic_model: Modelo que mapea audio a fonemas
+            context: Contexto lingüístico previo (opcional)
+            beam_width: Ancho para beam search (búsqueda por haz)
+        """
+        # Implementación de reconocimiento de voz integrado
+        # (Nota: El código completo de esta función no estaba incluido en el original)

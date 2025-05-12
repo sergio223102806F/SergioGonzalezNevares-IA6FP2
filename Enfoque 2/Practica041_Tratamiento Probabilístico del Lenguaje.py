@@ -1,230 +1,211 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr  9 14:44:30 2025
-
+Script para modelo de lenguaje probabilístico con capacidades de pronunciación
+Created on Wed Apr  9 14:51:17 2025
 @author: elvin
 """
 
-import numpy as np
-import tensorflow as tf
-import tensorflow_probability as tfp
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Conv1D, LSTM, Dense, Dropout, Bidirectional
-from tensorflow.keras.callbacks import EarlyStopping
-import matplotlib.pyplot as plt
+# Importación de librerías numéricas y de deep learning
+import numpy as np  # Para operaciones numéricas
+import tensorflow as tf  # Framework de deep learning
+import tensorflow_probability as tfp  # Extensiones probabilísticas de TensorFlow
 
+# Importación de capas y modelos de Keras
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense, Lambda  # Capas de red neuronal
+from tensorflow.keras.models import Model  # Clase para construir modelos
+
+# Importación de estructuras de datos y visualización
+from collections import defaultdict, Counter  # Para conteos y mapeos
+import matplotlib.pyplot as plt  # Para visualización
+
+# Alias corto para distribuciones de TensorFlow Probability
 tfd = tfp.distributions
 
-class NeuralSpeechRecognizer:
-    def __init__(self, phonemes, words, max_seq_length, acoustic_dim=13):
+class ProbabilisticLanguageModel:
+    def __init__(self, vocab, phonemes, word_to_phonemes, max_seq_length):
         """
-        phonemes: Lista de fonemas
-        words: Diccionario de palabras a fonemas
-        max_seq_length: Máxima longitud de secuencia
-        acoustic_dim: Dimensiones de características acústicas (MFCCs)
+        Inicializa el modelo probabilístico de lenguaje y pronunciación
+        
+        Args:
+            vocab: Lista de palabras en el vocabulario
+            phonemes: Lista de fonemas posibles
+            word_to_phonemes: Diccionario {palabra: [fonemas]}
+            max_seq_length: Máxima longitud de secuencias de entrada
         """
-        self.phonemes = phonemes
-        self.words = words
-        self.max_seq_length = max_seq_length
-        self.acoustic_dim = acoustic_dim
+        # Vocabulario y datos lingüísticos
+        self.vocab = vocab  # Lista de palabras conocidas
+        self.phonemes = phonemes  # Lista de fonemas posibles
+        self.word_to_phonemes = word_to_phonemes  # Mapeo palabra-fonemas
+        self.max_seq_length = max_seq_length  # Longitud máxima de secuencias
         
-        # Mapeos de fonemas
-        self.phoneme_to_idx = {p:i for i,p in enumerate(phonemes)}
-        self.idx_to_phoneme = {i:p for i,p in enumerate(phonemes)}
+        # Mapeos de palabras y fonemas a índices numéricos
+        self.word_to_idx = {w:i for i,w in enumerate(vocab)}  # Diccionario palabra->índice
+        self.idx_to_word = {i:w for i,w in enumerate(vocab)}  # Diccionario índice->palabra
+        self.phoneme_to_idx = {p:i for i,p in enumerate(phonemes)}  # Diccionario fonema->índice
         
-        # Construir modelo
-        self.model = self.build_probabilistic_model()
+        # Hiperparámetros del modelo
+        self.embed_dim = 64  # Dimensión del embedding de palabras
+        self.lstm_units = 128  # Unidades en capa LSTM
+        self.hidden_dim = 64  # Dimensión de capa oculta
+        
+        # Construcción de los modelos
+        self.language_model = self.build_language_model()  # Modelo de lenguaje
+        self.pronunciation_model = self.build_pronunciation_model()  # Modelo de pronunciación
+        
+        # Estadísticas lingüísticas
+        self.word_freq = defaultdict(int)  # Frecuencias de palabras
+        self.phoneme_transitions = self.calculate_transition_probs()  # Probabilidades de transición fonémica
     
-    def build_probabilistic_model(self):
-        """Construye red neuronal con salida probabilística"""
-        # Entrada para características acústicas
-        inputs = Input(shape=(self.max_seq_length, self.acoustic_dim))
+    def build_language_model(self):
+        """Construye el modelo neuronal de lenguaje probabilístico"""
+        # Capa de entrada para índices de palabras
+        inputs = Input(shape=(self.max_seq_length,))
         
-        # Capa convolucional para extraer patrones locales
-        x = Conv1D(64, 5, activation='relu', padding='same')(inputs)
-        x = Dropout(0.3)(x)
+        # Capa de embedding para representar palabras como vectores
+        x = Embedding(len(self.vocab), self.embed_dim)(inputs)
         
-        # Capa Bidireccional LSTM para contexto temporal
-        x = Bidirectional(LSTM(128, return_sequences=True))(x)
-        x = Dropout(0.4)(x)
+        # Capa LSTM para capturar dependencias temporales
+        x = LSTM(self.lstm_units, return_sequences=True)(x)
         
-        # Capa densa intermedia
-        x = Dense(64, activation='relu')(x)
+        # Capa densa con softmax para distribución de probabilidad
+        word_probs = Dense(len(self.vocab), activation='softmax')(x)
         
-        # Salida probabilística
-        phoneme_probs = Dense(len(self.phonemes), activation='softmax')(x)
-        
-        # Distribución categórica para cada paso de tiempo
+        # Función para convertir salida en distribución probabilística
         def output_distribution(params):
             return tfd.Categorical(probs=params)
         
-        outputs = Lambda(output_distribution)(phoneme_probs)
+        # Capa Lambda para aplicar la conversión a distribución
+        outputs = Lambda(output_distribution)(word_probs)
         
-        # Modelo completo
+        # Construcción del modelo completo
         model = Model(inputs=inputs, outputs=outputs)
         
-        # Función de pérdida personalizada
+        # Función de pérdida (negative log-likelihood)
         def nll_loss(y_true, y_pred):
             return -y_pred.log_prob(y_true)
         
-        # Compilar modelo
-        model.compile(optimizer=tf.keras.optimizers.Adam(0.001),
-                     loss=nll_loss,
-                     metrics=['accuracy'])
+        # Compilación del modelo con optimizador Adam
+        model.compile(optimizer='adam', loss=nll_loss)
         
         return model
     
-    def preprocess_data(self, audio_features, phoneme_sequences):
-        """Preprocesa datos para entrenamiento"""
-        # Padding de características acústicas
-        X = tf.keras.preprocessing.sequence.pad_sequences(
-            audio_features, 
-            maxlen=self.max_seq_length, 
-            padding='post', 
-            dtype='float32'
-        )
+    def build_pronunciation_model(self):
+        """Construye modelo para mapear palabras a fonemas"""
+        # Capa de entrada para índices de palabras
+        inputs = Input(shape=(self.max_seq_length,))
         
-        # Convertir secuencias de fonemas a índices
-        y = [[self.phoneme_to_idx[p] for p in seq] for seq in phoneme_sequences]
-        y = tf.keras.preprocessing.sequence.pad_sequences(
-            y, 
-            maxlen=self.max_seq_length, 
-            padding='post', 
-            value=-1
-        )
+        # Capa de embedding para palabras
+        x = Embedding(len(self.vocab), self.embed_dim)(inputs)
         
-        return X, y
-    
-    def train(self, X_train, y_train, X_val=None, y_val=None, epochs=50, batch_size=32):
-        """Entrena el modelo"""
-        early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        # Capa LSTM para secuencias fonéticas
+        x = LSTM(self.lstm_units, return_sequences=True)(x)
         
-        history = self.model.fit(
-            X_train, y_train,
-            validation_data=(X_val, y_val) if X_val is not None else None,
-            epochs=epochs,
-            batch_size=batch_size,
-            callbacks=[early_stop] if X_val is not None else None,
-            verbose=1
-        )
+        # Capa densa oculta con activación ReLU
+        x = Dense(self.hidden_dim, activation='relu')(x)
         
-        return history
-    
-    def predict_phonemes(self, audio_features):
-        """Predice fonemas para características dadas"""
-        # Preprocesamiento
-        X = tf.keras.preprocessing.sequence.pad_sequences(
-            [audio_features], 
-            maxlen=self.max_seq_length, 
-            padding='post', 
-            dtype='float32'
-        )
+        # Capa de salida con softmax para probabilidades de fonemas
+        phoneme_probs = Dense(len(self.phonemes), activation='softmax')(x)
         
-        # Obtener probabilidades
-        probs = self.model(X).mean().numpy()[0]
+        # Conversión a distribución probabilística
+        def output_distribution(params):
+            return tfd.Categorical(probs=params)
         
-        # Secuencia más probable
-        phoneme_indices = np.argmax(probs, axis=-1)
-        phoneme_sequence = [self.idx_to_phoneme[idx] for idx in phoneme_indices if idx != -1]
+        # Capa Lambda para salida distribucional
+        outputs = Lambda(output_distribution)(phoneme_probs)
         
-        return phoneme_sequence, probs
-    
-    def predict_words(self, audio_features):
-        """Reconoce palabras completas"""
-        phonemes, _ = self.predict_phonemes(audio_features)
+        # Construcción del modelo completo
+        model = Model(inputs=inputs, outputs=outputs)
         
-        # Algoritmo de búsqueda de palabras
-        recognized_words = []
-        buffer = []
+        # Función de pérdida (negative log-likelihood)
+        def nll_loss(y_true, y_pred):
+            return -y_pred.log_prob(y_true)
         
-        for phoneme in phonemes:
-            buffer.append(phoneme)
-            
-            # Verificar palabras conocidas
-            for word, word_phonemes in self.words.items():
-                if buffer == word_phonemes:
-                    recognized_words.append(word)
-                    buffer = []
-                    break
+        # Compilación del modelo
+        model.compile(optimizer='adam', loss=nll_loss)
         
-        return recognized_words, phonemes
+        return model
     
-    def uncertainty_analysis(self, audio_features, num_samples=100):
-        """Analiza incertidumbre usando Dropout como aproximación bayesiana"""
-        # Activar dropout durante inferencia
-        logits = []
-        for _ in range(num_samples):
-            logits.append(self.model(audio_features[np.newaxis, ...]).mean().numpy())
+    def calculate_transition_probs(self):
+        """Calcula probabilidades de transición entre fonemas"""
+        transitions = defaultdict(Counter)  # Diccionario para conteos de transiciones
         
-        logits = np.array(logits)
-        mean_probs = tf.nn.softmax(np.mean(logits, axis=0)).numpy()[0]
-        std_probs = tf.nn.softmax(np.std(logits, axis=0)).numpy()[0]
+        # Contar transiciones entre fonemas en todas las palabras
+        for word, phonemes in self.word_to_phonemes.items():
+            for i in range(len(phonemes)-1):
+                current = phonemes[i]  # Fonema actual
+                next_p = phonemes[i+1]  # Fonema siguiente
+                transitions[current][next_p] += 1  # Incrementar conteo
         
-        return {
-            'mean_probs': mean_probs,
-            'std_probs': std_probs,
-            'entropy': -np.sum(mean_probs * np.log(mean_probs + 1e-10), axis=-1)
-        }
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    # Configuración
-    phonemes = ['p', 'a', 't', 'e', 'l', 'o', 'm', 'n', 's', 'i', 'd', 'r']
-    words = {
-        'pato': ['p', 'a', 't', 'o'],
-        'mesa': ['m', 'e', 's', 'a'],
-        'limon': ['l', 'i', 'm', 'o', 'n'],
-        'radio': ['r', 'a', 'd', 'i', 'o']
-    }
-    max_seq_length = 30
+        # Normalizar conteos a probabilidades
+        probs = {}
+        for current, counts in transitions.items():
+            total = sum(counts.values())  # Total de ocurrencias del fonema actual
+            probs[current] = {next_p: count/total for next_p, count in counts.items()}
+        
+        return probs
     
-    # Crear reconocedor
-    recognizer = NeuralSpeechRecognizer(phonemes, words, max_seq_length)
+    def update_language_stats(self, text_corpus):
+        """Actualiza estadísticas de frecuencia de palabras"""
+        for sentence in text_corpus:
+            words = sentence.split()  # Dividir texto en palabras
+            for word in words:
+                self.word_freq[word] += 1  # Incrementar conteo de palabra
     
-    # Generar datos de ejemplo (simulado)
-    def generate_mfccs(length):
-        return np.random.normal(size=(length, 13))
+    def predict_next_word(self, context_words, num_candidates=5):
+        """Predice la siguiente palabra dado un contexto"""
+        # Convertir palabras de contexto a índices
+        context_idx = [self.word_to_idx[w] for w in context_words if w in self.word_to_idx]
+        
+        # Si no hay contexto válido, devolver palabras más frecuentes
+        if not context_idx:
+            return sorted(self.word_freq.items(), key=lambda x: -x[1])[:num_candidates]
+        
+        # Aplicar padding al contexto para longitud fija
+        context_padded = tf.keras.preprocessing.sequence.pad_sequences(
+            [context_idx], maxlen=self.max_seq_length, padding='pre')
+        
+        # Obtener predicciones del modelo
+        preds = self.language_model(context_padded).mean().numpy()[0][-1]
+        
+        # Obtener índices de las palabras más probables
+        top_indices = np.argsort(preds)[-num_candidates:][::-1]
+        
+        # Devolver palabras y sus probabilidades
+        return [(self.idx_to_word[i], preds[i]) for i in top_indices]
     
-    X_train = [generate_mfccs(np.random.randint(5, 15)) for _ in range(200)]
-    y_train = [random.choice(list(words.values())) for _ in range(200)]
+    def word_to_phoneme_prob(self, word):
+        """Convierte una palabra a su secuencia fonética con probabilidades"""
+        # Verificar si la palabra está en el vocabulario
+        if word not in self.word_to_idx:
+            return None
+        
+        # Obtener índice de la palabra y aplicar padding
+        word_idx = self.word_to_idx[word]
+        word_input = tf.keras.preprocessing.sequence.pad_sequences(
+            [[word_idx]], maxlen=self.max_seq_length)
+        
+        # Obtener distribución de fonemas del modelo
+        phoneme_dist = self.pronunciation_model(word_input).mean().numpy()[0]
+        
+        # Construir secuencia más probable de fonemas
+        phoneme_seq = []
+        for t in range(phoneme_dist.shape[0]):
+            # Usar umbral para descartar predicciones débiles
+            if np.max(phoneme_dist[t]) > 0.1:
+                phoneme_idx = np.argmax(phoneme_dist[t])
+                phoneme_seq.append(self.phonemes[phoneme_idx])
+        
+        return phoneme_seq, phoneme_dist
     
-    X_val = [generate_mfccs(np.random.randint(5, 15)) for _ in range(50)]
-    y_val = [random.choice(list(words.values())) for _ in range(50)]
-    
-    # Preprocesar
-    X_train_prep, y_train_prep = recognizer.preprocess_data(X_train, y_train)
-    X_val_prep, y_val_prep = recognizer.preprocess_data(X_val, y_val)
-    
-    # Entrenar
-    history = recognizer.train(X_train_prep, y_train_prep, X_val_prep, y_val_prep, epochs=30)
-    
-    # Visualizar entrenamiento
-    plt.figure(figsize=(12, 5))
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['loss'], label='Entrenamiento')
-    plt.plot(history.history['val_loss'], label='Validación')
-    plt.title('Pérdida')
-    plt.legend()
-    
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['accuracy'], label='Entrenamiento')
-    plt.plot(history.history['val_accuracy'], label='Validación')
-    plt.title('Precisión')
-    plt.legend()
-    plt.show()
-    
-    # Probar reconocimiento
-    test_word = 'pato'
-    test_audio = generate_mfccs(len(words[test_word]))
-    
-    words_pred, phonemes_pred = recognizer.predict_words(test_audio)
-    print(f"\nPalabra original: {test_word} ({' '.join(words[test_word])})")
-    print(f"Palabra reconocida: {words_pred} ({' '.join(phonemes_pred)})")
-    
-    # Análisis de incertidumbre
-    uncertainty = recognizer.uncertainty_analysis(test_audio)
-    print("\nAnálisis de incertidumbre:")
-    for i, phoneme in enumerate(phonemes_pred):
-        print(f"{phoneme}:")
-        print(f"  Entropía: {uncertainty['entropy'][i]:.3f}")
-        print(f"  Desviación estándar: {np.mean(uncertainty['std_probs'][i]):.3f}")
+    def recognize_speech(self, audio_features, acoustic_model, context=None, beam_width=3):
+        """
+        Integra modelo acústico y de lenguaje para reconocimiento de voz
+        
+        Args:
+            audio_features: Características acústicas extraídas del audio
+            acoustic_model: Modelo que mapea audio a fonemas
+            context: Contexto lingüístico previo (opcional)
+            beam_width: Ancho para beam search (búsqueda por haz)
+        """
+        # Implementación de reconocimiento de voz integrado
+        # (Nota: El código completo de esta función no estaba incluido en el original)

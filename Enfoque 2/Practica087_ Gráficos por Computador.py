@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-                                                     # Define la codificación de caracteres del archivo como UTF-8
 """
-Created on Sun Apr 27 13:43:57 2025
-
-@author: elvin
+Created on Sun Apr 27 13:43:57 2025                                         # Indica la fecha y hora de creación del archivo
+                                                                           #
+@author: elvin                                                              # Define el autor del archivo
 """
 
 """
@@ -16,283 +16,186 @@ Este código implementa:
 5. Shading básico
 """
 
-import numpy as np
-import math
-from PIL import Image  # Para manejo de imágenes
+import numpy as np                                                          # Importa la biblioteca numpy para computación numérica
+import math                                                               # Importa la biblioteca math para operaciones matemáticas
+from PIL import Image  # Para manejo de imágenes                         # Importa la clase Image de la biblioteca PIL para manipulación de imágenes
 
-class Vector3:
-    """Clase para representar vectores en 3D y sus operaciones básicas"""
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
+class Vector3:                                                            # Define una nueva clase llamada Vector3
+    """Clase para representar vectores en 3D y sus operaciones básicas""" # Documentación de la clase Vector3
+    def __init__(self, x, y, z):                                           # Define el constructor de la clase Vector3
+        self.x = x                                                        # Inicializa el componente x del vector
+        self.y = y                                                        # Inicializa el componente y del vector
+        self.z = z                                                        # Inicializa el componente z del vector
     
-    def __add__(self, other):
-        """Suma de vectores componente a componente"""
-        return Vector3(self.x + other.x, self.y + other.y, self.z + other.z)
+    def __add__(self, other):                                            # Define la sobrecarga del operador de suma
+        """Suma de vectores componente a componente"""                      # Documentación del método __add__
+        return Vector3(self.x + other.x, self.y + other.y, self.z + other.z) # Retorna un nuevo Vector3 con la suma de los componentes
     
-    def __sub__(self, other):
-        """Resta de vectores componente a componente"""
-        return Vector3(self.x - other.x, self.y - other.y, self.z - other.z)
+    def __sub__(self, other):                                            # Define la sobrecarga del operador de resta
+        """Resta de vectores componente a componente"""                      # Documentación del método __sub__
+        return Vector3(self.x - other.x, self.y - other.y, self.z - other.z) # Retorna un nuevo Vector3 con la resta de los componentes
     
-    def __mul__(self, scalar):
-        """Multiplicación por escalar"""
-        return Vector3(self.x * scalar, self.y * scalar, self.z * scalar)
+    def __mul__(self, scalar):                                          # Define la sobrecarga del operador de multiplicación por escalar
+        """Multiplicación por escalar"""                                  # Documentación del método __mul__
+        return Vector3(self.x * scalar, self.y * scalar, self.z * scalar) # Retorna un nuevo Vector3 con los componentes multiplicados por el escalar
     
-    def dot(self, other):
-        """Producto punto entre vectores"""
-        return self.x*other.x + self.y*other.y + self.z*other.z
+    def dot(self, other):                                                # Define el método para calcular el producto punto
+        """Producto punto entre vectores"""                               # Documentación del método dot
+        return self.x*other.x + self.y*other.y + self.z*other.z             # Retorna el producto punto de los dos vectores
     
-    def cross(self, other):
-        """Producto cruz entre vectores"""
-        return Vector3(
-            self.y*other.z - self.z*other.y,
-            self.z*other.x - self.x*other.z,
-            self.x*other.y - self.y*other.x
+    def cross(self, other):                                              # Define el método para calcular el producto cruz
+        """Producto cruz entre vectores"""                               # Documentación del método cross
+        return Vector3(                                                  # Retorna un nuevo Vector3 que es el producto cruz
+            self.y*other.z - self.z*other.y,                             # Calcula el componente x del producto cruz
+            self.z*other.x - self.x*other.z,                             # Calcula el componente y del producto cruz
+            self.x*other.y - self.y*other.x                              # Calcula el componente z del producto cruz
         )
     
-    def normalize(self):
-        """Normaliza el vector (longitud 1)"""
-        length = math.sqrt(self.x**2 + self.y**2 + self.z**2)
-        return Vector3(self.x/length, self.y/length, self.z/length)
+    def normalize(self):                                              # Define el método para normalizar el vector
+        """Normaliza el vector (longitud 1)"""                            # Documentación del método normalize
+        length = math.sqrt(self.x**2 + self.y**2 + self.z**2)             # Calcula la longitud del vector
+        return Vector3(self.x/length, self.y/length, self.z/length)       # Retorna un nuevo Vector3 con los componentes normalizados
     
-    def to_array(self):
-        """Convierte a array numpy"""
-        return np.array([self.x, self.y, self.z])
+    def to_array(self):                                                # Define el método para convertir a array numpy
+        """Convierte a array numpy"""                                    # Documentación del método to_array
+        return np.array([self.x, self.y, self.z])                        # Retorna un array numpy con los componentes del vector
 
-class Matrix4:
-    """Clase para matrices 4x4 y operaciones de transformación"""
-    def __init__(self):
-        # Inicializa como matriz identidad
-        self.m = np.identity(4, dtype=np.float32)
+class Matrix4:                                                            # Define una nueva clase llamada Matrix4
+    """Clase para matrices 4x4 y operaciones de transformación"""       # Documentación de la clase Matrix4
+    def __init__(self):                                                     # Define el constructor de la clase Matrix4
+        # Inicializa como matriz identidad                               # Comentario explicando la inicialización
+        self.m = np.identity(4, dtype=np.float32)                         # Inicializa la matriz como una matriz identidad de 4x4 de tipo float32
     
-    @staticmethod
-    def translation(tx, ty, tz):
-        """Crea matriz de traslación"""
-        m = Matrix4()
-        m.m[0, 3] = tx
-        m.m[1, 3] = ty
-        m.m[2, 3] = tz
-        return m
+    @staticmethod                                                         # Indica que el siguiente método es estático
+    def translation(tx, ty, tz):                                        # Define un método estático para crear una matriz de traslación
+        """Crea matriz de traslación"""                                  # Documentación del método translation
+        m = Matrix4()                                                    # Crea una nueva instancia de Matrix4
+        m.m[0, 3] = tx                                                   # Establece el componente de traslación en x
+        m.m[1, 3] = ty                                                   # Establece el componente de traslación en y
+        m.m[2, 3] = tz                                                   # Establece el componente de traslación en z
+        return m                                                         # Retorna la matriz de traslación
     
-    @staticmethod
-    def rotation_x(angle):
-        """Crea matriz de rotación en eje X (en radianes)"""
-        m = Matrix4()
-        cos = math.cos(angle)
-        sin = math.sin(angle)
-        m.m[1, 1] = cos
-        m.m[1, 2] = -sin
-        m.m[2, 1] = sin
-        m.m[2, 2] = cos
-        return m
+    @staticmethod                                                         # Indica que el siguiente método es estático
+    def rotation_x(angle):                                              # Define un método estático para crear una matriz de rotación en el eje X
+        """Crea matriz de rotación en eje X (en radianes)"""              # Documentación del método rotation_x
+        m = Matrix4()                                                    # Crea una nueva instancia de Matrix4
+        cos = math.cos(angle)                                            # Calcula el coseno del ángulo
+        sin = math.sin(angle)                                            # Calcula el seno del ángulo
+        m.m[1, 1] = cos                                                   # Establece el componente de rotación
+        m.m[1, 2] = -sin                                                  # Establece el componente de rotación
+        m.m[2, 1] = sin                                                   # Establece el componente de rotación
+        m.m[2, 2] = cos                                                   # Establece el componente de rotación
+        return m                                                         # Retorna la matriz de rotación en X
     
-    @staticmethod
-    def rotation_y(angle):
-        """Crea matriz de rotación en eje Y (en radianes)"""
-        m = Matrix4()
-        cos = math.cos(angle)
-        sin = math.sin(angle)
-        m.m[0, 0] = cos
-        m.m[0, 2] = sin
-        m.m[2, 0] = -sin
-        m.m[2, 2] = cos
-        return m
+    @staticmethod                                                         # Indica que el siguiente método es estático
+    def rotation_y(angle):                                              # Define un método estático para crear una matriz de rotación en el eje Y
+        """Crea matriz de rotación en eje Y (en radianes)"""              # Documentación del método rotation_y
+        m = Matrix4()                                                    # Crea una nueva instancia de Matrix4
+        cos = math.cos(angle)                                            # Calcula el coseno del ángulo
+        sin = math.sin(angle)                                            # Calcula el seno del ángulo
+        m.m[0, 0] = cos                                                   # Establece el componente de rotación
+        m.m[0, 2] = sin                                                   # Establece el componente de rotación
+        m.m[2, 0] = -sin                                                  # Establece el componente de rotación
+        m.m[2, 2] = cos                                                   # Establece el componente de rotación
+        return m                                                         # Retorna la matriz de rotación en Y
     
-    @staticmethod
-    def perspective(fov, aspect, near, far):
-        """Crea matriz de proyección perspectiva"""
-        m = Matrix4()
-        f = 1.0 / math.tan(fov * 0.5)
-        m.m[0, 0] = f / aspect
-        m.m[1, 1] = f
-        m.m[2, 2] = (far + near) / (near - far)
-        m.m[2, 3] = (2 * far * near) / (near - far)
-        m.m[3, 2] = -1.0
-        m.m[3, 3] = 0.0
-        return m
+    @staticmethod                                                         # Indica que el siguiente método es estático
+    def perspective(fov, aspect, near, far):                            # Define un método estático para crear una matriz de proyección perspectiva
+        """Crea matriz de proyección perspectiva"""                       # Documentación del método perspective
+        m = Matrix4()                                                    # Crea una nueva instancia de Matrix4
+        f = 1.0 / math.tan(fov * 0.5)                                    # Calcula el factor de escala de la perspectiva
+        m.m[0, 0] = f / aspect                                           # Establece el componente de la matriz de perspectiva
+        m.m[1, 1] = f                                                     # Establece el componente de la matriz de perspectiva
+        m.m[2, 2] = (far + near) / (near - far)                         # Establece el componente de la matriz de perspectiva
+        m.m[2, 3] = (2 * far * near) / (near - far)                     # Establece el componente de la matriz de perspectiva
+        m.m[3, 2] = -1.0                                                  # Establece el componente de la matriz de perspectiva
+        m.m[3, 3] = 0.0                                                    # Establece el componente de la matriz de perspectiva
+        return m                                                         # Retorna la matriz de proyección perspectiva
     
-    def multiply(self, other):
-        """Multiplica esta matriz por otra"""
-        result = Matrix4()
-        result.m = np.dot(self.m, other.m)
-        return result
+    def multiply(self, other):                                          # Define el método para multiplicar la matriz actual por otra
+        """Multiplica esta matriz por otra"""                            # Documentación del método multiply
+        result = Matrix4()                                               # Crea una nueva instancia de Matrix4 para el resultado
+        result.m = np.dot(self.m, other.m)                               # Realiza la multiplicación de matrices usando numpy.dot
+        return result                                                    # Retorna la matriz resultante de la multiplicación
     
-    def transform(self, vector):
-        """Aplica transformación a un vector 3D (asume coordenadas homogéneas)"""
-        v = np.array([vector.x, vector.y, vector.z, 1.0])
-        transformed = np.dot(self.m, v)
-        return Vector3(
-            transformed[0]/transformed[3],
-            transformed[1]/transformed[3],
-            transformed[2]/transformed[3]
+    def transform(self, vector):                                        # Define el método para aplicar la transformación a un vector 3D
+        """Aplica transformación a un vector 3D (asume coordenadas homogéneas)""" # Documentación del método transform
+        v = np.array([vector.x, vector.y, vector.z, 1.0])               # Convierte el Vector3 a un array numpy con coordenada homogénea
+        transformed = np.dot(self.m, v)                                  # Multiplica la matriz de transformación por el vector
+        return Vector3(                                                  # Retorna un nuevo Vector3 con las coordenadas transformadas
+            transformed[0]/transformed[3],                             # Divide por la coordenada homogénea para obtener la coordenada x proyectada
+            transformed[1]/transformed[3],                             # Divide por la coordenada homogénea para obtener la coordenada y proyectada
+            transformed[2]/transformed[3]                              # Divide por la coordenada homogénea para obtener la coordenada z proyectada
         )
 
-class Mesh:
-    """Clase para representar mallas 3D (vértices y triángulos)"""
-    def __init__(self):
-        self.vertices = []
-        self.triangles = []  # Cada triángulo es índices de 3 vértices
-        self.colors = []      # Color para cada triángulo
+class Mesh:                                                               # Define una nueva clase llamada Mesh
+    """Clase para representar mallas 3D (vértices y triángulos)"""       # Documentación de la clase Mesh
+    def __init__(self):                                                     # Define el constructor de la clase Mesh
+        self.vertices = []                                                # Inicializa una lista vacía para almacenar los vértices
+        self.triangles = []  # Cada triángulo es índices de 3 vértices       # Inicializa una lista vacía para almacenar los triángulos (índices de vértices)
+        self.colors = []    # Color para cada triángulo                     # Inicializa una lista vacía para almacenar los colores de cada triángulo
     
-    def load_from_obj(self, filename):
-        """Carga malla desde archivo OBJ (formato estándar)"""
-        with open(filename, 'r') as f:
-            for line in f:
-                if line.startswith('v '):
-                    # Línea de vértice: v x y z
-                    parts = line.split()
-                    self.vertices.append(Vector3(
-                        float(parts[1]),
-                        float(parts[2]),
-                        float(parts[3])
+    def load_from_obj(self, filename):                                   # Define el método para cargar una malla desde un archivo OBJ
+        """Carga malla desde archivo OBJ (formato estándar)"""              # Documentación del método load_from_obj
+        with open(filename, 'r') as f:                                    # Abre el archivo OBJ en modo lectura
+            for line in f:                                                # Itera sobre cada línea del archivo
+                if line.startswith('v '):                                 # Si la línea comienza con 'v ', es una línea de vértice
+                    # Línea de vértice: v x y z                             # Comentario explicando el formato de la línea de vértice
+                    parts = line.split()                                 # Divide la línea en partes separadas por espacios
+                    self.vertices.append(Vector3(                          # Crea un nuevo Vector3 con las coordenadas y lo añade a la lista de vértices
+                        float(parts[1]),                                  # Convierte la segunda parte a float (coordenada x)
+                        float(parts[2]),                                  # Convierte la tercera parte a float (coordenada y)
+                        float(parts[3])                                   # Convierte la cuarta parte a float (coordenada z)
                     ))
-                elif line.startswith('f '):
-                    # Línea de cara: f v1 v2 v3
-                    parts = line.split()
-                    self.triangles.append([
-                        int(parts[1].split('/')[0]) - 1,
-                        int(parts[2].split('/')[0]) - 1,
-                        int(parts[3].split('/')[0]) - 1
+                elif line.startswith('f '):                               # Si la línea comienza con 'f ', es una línea de cara (triángulo)
+                    # Línea de cara: f v1 v2 v3                             # Comentario explicando el formato de la línea de cara
+                    parts = line.split()                                 # Divide la línea en partes separadas por espacios
+                    self.triangles.append([                               # Añade una lista de índices de vértices a la lista de triángulos
+                        int(parts[1].split('/')[0]) - 1,                   # Obtiene el índice del primer vértice y lo ajusta a base 0
+                        int(parts[2].split('/')[0]) - 1,                   # Obtiene el índice del segundo vértice y lo ajusta a base 0
+                        int(parts[3].split('/')[0]) - 1                    # Obtiene el índice del tercer vértice y lo ajusta a base 0
                     ])
-                    # Asigna color aleatorio al triángulo
-                    self.colors.append((
-                        np.random.randint(0, 255),
-                        np.random.randint(0, 255),
-                        np.random.randint(0, 255)
+                    # Asigna color aleatorio al triángulo                   # Comentario explicando la asignación de color
+                    self.colors.append((                                  # Añade una tupla con tres valores aleatorios (0-255) como color
+                        np.random.randint(0, 255),                          # Genera un valor entero aleatorio para el componente rojo
+                        np.random.randint(0, 255),                          # Genera un valor entero aleatorio para el componente verde
+                        np.random.randint(0, 255)                           # Genera un valor entero aleatorio para el componente azul
                     ))
 
-class Renderer:
-    """Clase principal para renderizado"""
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        # Buffer de color (imagen RGB)
-        self.color_buffer = np.zeros((height, width, 3), dtype=np.uint8)
-        # Buffer de profundidad (para visible surface determination)
-        self.depth_buffer = np.full((height, width), float('inf'))
+class Renderer:                                                             # Define una nueva clase llamada Renderer
+    """Clase principal para renderizado"""                                # Documentación de la clase Renderer
+    def __init__(self, width, height):                                    # Define el constructor de la clase Renderer
+        self.width = width                                                # Inicializa el ancho del buffer de color
+        self.height = height                                              # Inicializa la altura del buffer de color
+        # Buffer de color (imagen RGB)                                    # Comentario explicando el buffer de color
+        self.color_buffer = np.zeros((height, width, 3), dtype=np.uint8) # Inicializa un array numpy de ceros para el buffer de color (alto x ancho x 3 canales RGB)
+        # Buffer de profundidad (para visible surface determination)       # Comentario explicando el buffer de profundidad
+        self.depth_buffer = np.full((height, width), float('inf'))       # Inicializa un array numpy lleno de infinito para el buffer de profundidad
     
-    def clear(self, color=(0, 0, 0)):
-        """Limpia los buffers con color especificado"""
-        self.color_buffer[:, :] = color
-        self.depth_buffer.fill(float('inf'))
+    def clear(self, color=(0, 0, 0)):                                     # Define el método para limpiar los buffers
+        """Limpia los buffers con color especificado"""                    # Documentación del método clear
+        self.color_buffer[:, :] = color                                  # Llena todo el buffer de color con el color especificado
+        self.depth_buffer.fill(float('inf'))                             # Llena todo el buffer de profundidad con infinito
     
-    def rasterize_triangle(self, v0, v1, v2, color):
-        """Rasteriza un triángulo en los buffers"""
-        # Convertir coordenadas de pantalla a píxeles
-        x0, y0 = int((v0.x + 1) * 0.5 * self.width), int((1 - (v0.y + 1) * 0.5) * self.height)
-        x1, y1 = int((v1.x + 1) * 0.5 * self.width), int((1 - (v1.y + 1) * 0.5) * self.height)
-        x2, y2 = int((v2.x + 1) * 0.5 * self.width), int((1 - (v2.y + 1) * 0.5) * self.height)
+    def rasterize_triangle(self, v0, v1, v2, color):                      # Define el método para rasterizar un triángulo
+        """Rasteriza un triángulo en los buffers"""                       # Documentación del método rasterize_triangle
+        # Convertir coordenadas de pantalla a píxeles                    # Comentario explicando la conversión de coordenadas
+        x0, y0 = int((v0.x + 1) * 0.5 * self.width), int((1 - (v0.y + 1) * 0.5) * self.height) # Convierte las coordenadas normalizadas a coordenadas de píxel
+        x1, y1 = int((v1.x + 1) * 0.5 * self.width), int((1 - (v1.y + 1) * 0.5) * self.height) # Convierte las coordenadas normalizadas a coordenadas de píxel
+        x2, y2 = int((v2.x + 1) * 0.5 * self.width), int((1 - (v2.y + 1) * 0.5) * self.height) # Convierte las coordenadas normalizadas a coordenadas de píxel
         
-        # Calcular bounding box del triángulo
-        min_x = max(0, min(x0, x1, x2))
-        max_x = min(self.width-1, max(x0, x1, x2))
-        min_y = max(0, min(y0, y1, y2))
-        max_y = min(self.height-1, max(y0, y1, y2))
+        # Calcular bounding box del triángulo                           # Comentario explicando el cálculo del bounding box
+        min_x = max(0, min(x0, x1, x2))                                 # Calcula el mínimo x y lo asegura dentro de los límites
+        max_x = min(self.width-1, max(x0, x1, x2))                      # Calcula el máximo x y lo asegura dentro de los límites
+        min_y = max(0, min(y0, y1, y2))                                 # Calcula el mínimo y y lo asegura dentro de los límites
+        max_y = min(self.height-1, max(y0, y1, y2))                    # Calcula el máximo y y lo asegura dentro de los límites
         
-        # Función para calcular coordenadas baricéntricas
-        def barycentric(x, y):
-            denom = (y1 - y2)*(x0 - x2) + (x2 - x1)*(y0 - y2)
-            a = ((y1 - y2)*(x - x2) + (x2 - x1)*(y - y2)) / denom
-            b = ((y2 - y0)*(x - x2) + (x0 - x2)*(y - y2)) / denom
-            c = 1 - a - b
-            return a, b, c
+        # Función para calcular coordenadas baricéntricas                # Comentario explicando la función baricéntrica
+        def barycentric(x, y):                                          # Define una función local para calcular coordenadas baricéntricas
+            denom = (y1 - y2)*(x0 - x2) + (x2 - x1)*(y0 - y2)             # Calcula el denominador para las coordenadas baricéntricas
+            a = ((y1 - y2)*(x - x2) + (x2 - x1)*(y - y2)) / denom       # Calcula la coordenada baricéntrica a
+            b = ((y2 - y0)*(x - x2) + (x0 - x2)*(y - y2)) / denom       # Calcula la coordenada baricéntrica b
+            c = 1 - a - b                                              # Calcula la coordenada baricéntrica c
+            return a, b, c                                             # Retorna las coordenadas baricéntricas
         
-        # Rasterizar cada píxel en el bounding box
-        for y in range(min_y, max_y+1):
-            for x in range(min_x, max_x+1):
-                a, b, c = barycentric(x, y)
-                
-                # Verificar si el punto está dentro del triángulo
-                if a >= 0 and b >= 0 and c >= 0:
-                    # Calcular profundidad interpolada
-                    z = a*v0.z + b*v1.z + c*v2.z
-                    
-                    # Comprobar si es el píxel más cercano
-                    if z < self.depth_buffer[y, x]:
-                        self.depth_buffer[y, x] = z
-                        self.color_buffer[y, x] = color
-    
-    def render_mesh(self, mesh, view_matrix, projection_matrix):
-        """Renderiza una malla completa"""
-        # Matriz de transformación completa
-        mvp = projection_matrix.multiply(view_matrix)
-        
-        # Procesar cada triángulo
-        for i, triangle in enumerate(mesh.triangles):
-            # Obtener vértices del triángulo
-            v0 = mesh.vertices[triangle[0]]
-            v1 = mesh.vertices[triangle[1]]
-            v2 = mesh.vertices[triangle[2]]
-            
-            # Aplicar transformaciones
-            tv0 = mvp.transform(v0)
-            tv1 = mvp.transform(v1)
-            tv2 = mvp.transform(v2)
-            
-            # Calcular normal para backface culling
-            normal = (tv1 - tv0).cross(tv2 - tv0)
-            
-            # Solo renderizar si la cara está orientada hacia la cámara
-            if normal.z < 0:
-                # Obtener color del triángulo
-                color = mesh.colors[i]
-                
-                # Rasterizar triángulo
-                self.rasterize_triangle(tv0, tv1, tv2, color)
-    
-    def save_image(self, filename):
-        """Guarda el buffer de color como imagen PNG"""
-        img = Image.fromarray(self.color_buffer, 'RGB')
-        img.save(filename)
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    print("Renderizando escena 3D básica...")
-    
-    # 1. Crear renderizador con resolución 800x600
-    renderer = Renderer(800, 600)
-    renderer.clear(color=(50, 50, 100))  # Fondo azul oscuro
-    
-    # 2. Cargar malla 3D desde archivo OBJ
-    mesh = Mesh()
-    try:
-        mesh.load_from_obj("cube.obj")  # Archivo debe existir
-    except FileNotFoundError:
-        # Crear cubo manualmente si no hay archivo
-        print("Archivo no encontrado, usando cubo predeterminado")
-        # Vértices del cubo
-        mesh.vertices = [
-            Vector3(-1,-1,-1), Vector3(1,-1,-1), Vector3(1,1,-1), Vector3(-1,1,-1),
-            Vector3(-1,-1,1), Vector3(1,-1,1), Vector3(1,1,1), Vector3(-1,1,1)
-        ]
-        # Triángulos del cubo (12 triángulos, 2 por cara)
-        mesh.triangles = [
-            [0,1,2], [0,2,3], [1,5,6], [1,6,2],  # Cara frontal y derecha
-            [5,4,7], [5,7,6], [4,0,3], [4,3,7],  # Cara trasera e izquierda
-            [3,2,6], [3,6,7], [4,5,1], [4,1,0]   # Cara superior e inferior
-        ]
-        # Colores aleatorios para cada triángulo
-        mesh.colors = [(np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255)) 
-                      for _ in range(12)]
-    
-    # 3. Configurar matrices de vista y proyección
-    view_matrix = Matrix4.translation(0, 0, -5).multiply(
-        Matrix4.rotation_y(math.radians(30)).multiply(
-            Matrix4.rotation_x(math.radians(20))
-        )
-    )
-    
-    projection_matrix = Matrix4.perspective(
-        fov=math.radians(60),  # Campo de visión 60 grados
-        aspect=800/600,        # Relación de aspecto
-        near=0.1,              # Plano cercano
-        far=100.0              # Plano lejano
-    )
-    
-    # 4. Renderizar la malla
-    renderer.render_mesh(mesh, view_matrix, projection_matrix)
-    
-    # 5. Guardar resultado
-    renderer.save_image("render.png")
-    print("Imagen guardada como render.png")
+        # Rasterizar cada píxel en el bounding box                      # Comentario explicando la rasterización
