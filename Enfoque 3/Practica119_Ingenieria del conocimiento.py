@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-                                      # Especifica la codificación del archivo como UTF-8
 """
 Created on Sun Apr 27 17:21:27 2025
 
@@ -13,8 +13,8 @@ Este código implementa un sistema básico de Ingeniería del Conocimiento que i
 - Adquisición de conocimiento
 """
 
-from typing import Dict, List, Tuple, Optional
-import json
+from typing import Dict, List, Tuple, Optional                  # Importa tipos para type hints
+import json                                                    # Para guardar/cargar la base de conocimiento
 
 class BaseConocimiento:
     """
@@ -23,44 +23,40 @@ class BaseConocimiento:
     """
     
     def __init__(self):
-        self.hechos = set()  # Hechos conocidos
-        self.reglas = []     # Reglas en formato (premisas, conclusion)
+        self.hechos = set()                                    # Conjunto para almacenar hechos (evita duplicados)
+        self.reglas = []                                       # Lista de reglas (premisas, conclusión)
         
     def agregar_hecho(self, hecho: str):
         """Añade un hecho a la base de conocimiento"""
-        self.hechos.add(hecho.lower())
+        self.hechos.add(hecho.lower())                          # Almacena en minúsculas para normalizar
         
     def agregar_regla(self, premisas: List[str], conclusion: str):
         """
         Añade una regla a la base de conocimiento.
-        
-        Args:
-            premisas: Lista de condiciones necesarias
-            conclusion: Hecho que se deduce si las premisas son verdaderas
         """
-        premisas_normalizadas = [p.lower() for p in premisas]
-        conclusion_normalizada = conclusion.lower()
-        self.reglas.append((premisas_normalizadas, conclusion_normalizada))
+        premisas_normalizadas = [p.lower() for p in premisas]   # Normaliza premisas a minúsculas
+        conclusion_normalizada = conclusion.lower()             # Normaliza conclusión a minúsculas
+        self.reglas.append((premisas_normalizadas, conclusion_normalizada))  # Añade a lista de reglas
         
     def contiene(self, hecho: str) -> bool:
         """Verifica si un hecho está en la base de conocimiento"""
-        return hecho.lower() in self.hechos
+        return hecho.lower() in self.hechos                     # Busca en hechos (case-insensitive)
     
     def guardar(self, archivo: str):
         """Guarda la base de conocimiento en un archivo JSON"""
         datos = {
-            'hechos': list(self.hechos),
+            'hechos': list(self.hechos),                       # Convierte set a lista para JSON
             'reglas': self.reglas
         }
-        with open(archivo, 'w') as f:
-            json.dump(datos, f)
+        with open(archivo, 'w') as f:                          # Abre archivo en modo escritura
+            json.dump(datos, f)                                # Escribe datos en formato JSON
     
     def cargar(self, archivo: str):
         """Carga la base de conocimiento desde un archivo JSON"""
-        with open(archivo, 'r') as f:
-            datos = json.load(f)
-        self.hechos = set(datos['hechos'])
-        self.reglas = datos['reglas']
+        with open(archivo, 'r') as f:                          # Abre archivo en modo lectura
+            datos = json.load(f)                               # Carga datos desde JSON
+        self.hechos = set(datos['hechos'])                     # Convierte lista a set
+        self.reglas = datos['reglas']                          # Carga reglas
 
 class MotorInferencia:
     """
@@ -69,72 +65,63 @@ class MotorInferencia:
     """
     
     def __init__(self, base_conocimiento: BaseConocimiento):
-        self.bc = base_conocimiento
+        self.bc = base_conocimiento                            # Asocia el motor con una base de conocimiento
         
     def inferir(self) -> List[str]:
         """
         Ejecuta el motor de inferencia para derivar nuevos hechos.
-        
-        Returns:
-            Lista de nuevos hechos inferidos
         """
-        nuevos_hechos = []
-        cambios = True
+        nuevos_hechos = []                                     # Lista para nuevos hechos inferidos
+        cambios = True                                         # Bandera para controlar iteraciones
         
-        while cambios:
+        while cambios:                                         # Mientras haya cambios
             cambios = False
-            for premisas, conclusion in self.bc.reglas:
+            for premisas, conclusion in self.bc.reglas:         # Para cada regla
                 # Verificar si todas las premisas se cumplen
-                todas_verdad = all(p in self.bc.hechos for p in premisas)
+                todas_verdad = all(p in self.bc.hechos for p in premisas)  # Comprueba todas las premisas
                 
-                if todas_verdad and conclusion not in self.bc.hechos:
-                    self.bc.agregar_hecho(conclusion)
-                    nuevos_hechos.append(conclusion)
-                    cambios = True
+                if todas_verdad and conclusion not in self.bc.hechos:  # Si se cumplen y conclusión es nueva
+                    self.bc.agregar_hecho(conclusion)           # Añade conclusión a hechos
+                    nuevos_hechos.append(conclusion)            # Añade a lista de nuevos hechos
+                    cambios = True                              # Indica que hubo cambios
         
-        return nuevos_hechos
+        return nuevos_hechos                                   # Retorna hechos nuevos inferidos
     
     def explicar(self, hecho: str) -> Optional[str]:
         """
         Genera una explicación de cómo se derivó un hecho.
-        
-        Args:
-            hecho: El hecho a explicar
-            
-        Returns:
-            Cadena con la explicación o None si el hecho no existe
         """
-        if not self.bc.contiene(hecho.lower()):
-            return None
+        if not self.bc.contiene(hecho.lower()):                 # Si el hecho no existe
+            return None                                        # Retorna None
             
-        explicacion = []
-        hecho_actual = hecho.lower()
-        stack = [(hecho_actual, 0)]  # (hecho, nivel de profundidad)
+        explicacion = []                                        # Lista para líneas de explicación
+        hecho_actual = hecho.lower()                           # Normaliza el hecho
+        stack = [(hecho_actual, 0)]                            # Pila para búsqueda (hecho, nivel)
         
-        while stack:
-            hecho_actual, nivel = stack.pop()
-            espacio = "  " * nivel
+        while stack:                                           # Mientras haya elementos en la pila
+            hecho_actual, nivel = stack.pop()                  # Saca último elemento
+            espacio = "  " * nivel                             # Indentación según nivel
             
             # Buscar reglas que concluyan este hecho
             reglas_aplicables = [
                 (i, premisas) 
                 for i, (premisas, conc) in enumerate(self.bc.reglas) 
-                if conc == hecho_actual
+                if conc == hecho_actual                         # Filtra reglas que concluyan el hecho
             ]
             
-            if reglas_aplicables:
-                regla_idx, premisas = reglas_aplicables[0]
-                explicacion.append(f"{espacio}Por la regla {regla_idx}:")
-                explicacion.append(f"{espacio}SI {', '.join(premisas)}")
-                explicacion.append(f"{espacio}ENTONCES {hecho_actual}")
+            if reglas_aplicables:                               # Si hay reglas aplicables
+                regla_idx, premisas = reglas_aplicables[0]      # Toma la primera regla
+                explicacion.append(f"{espacio}Por la regla {regla_idx}:")  # Añade encabezado regla
+                explicacion.append(f"{espacio}SI {', '.join(premisas)}")  # Añade premisas
+                explicacion.append(f"{espacio}ENTONCES {hecho_actual}")  # Añade conclusión
                 
                 # Añadir premisas para explicar
-                for p in reversed(premisas):
-                    stack.append((p, nivel + 1))
+                for p in reversed(premisas):                    # Añade premisas en orden inverso
+                    stack.append((p, nivel + 1))                # Aumenta nivel de profundidad
             else:
-                explicacion.append(f"{espacio}Hecho básico: {hecho_actual}")
+                explicacion.append(f"{espacio}Hecho básico: {hecho_actual}")  # Hecho sin reglas
         
-        return "\n".join(explicacion)
+        return "\n".join(explicacion)                          # Une explicación con saltos de línea
 
 class SistemaIngenieriaConocimiento:
     """
@@ -145,98 +132,98 @@ class SistemaIngenieriaConocimiento:
     """
     
     def __init__(self):
-        self.bc = BaseConocimiento()
-        self.motor = MotorInferencia(self.bc)
+        self.bc = BaseConocimiento()                           # Crea base de conocimiento
+        self.motor = MotorInferencia(self.bc)                  # Crea motor con esta base
         
     def cargar_ejemplo_medico(self):
         """Carga un ejemplo de conocimiento médico"""
         # Hechos básicos
-        self.bc.agregar_hecho("paciente tiene fiebre")
-        self.bc.agregar_hecho("paciente tiene tos")
+        self.bc.agregar_hecho("paciente tiene fiebre")         # Hecho 1
+        self.bc.agregar_hecho("paciente tiene tos")            # Hecho 2
         
         # Reglas de diagnóstico
-        self.bc.agregar_regla(
+        self.bc.agregar_regla(                                 # Regla 1
             ["paciente tiene fiebre", "paciente tiene tos"],
             "posible gripe"
         )
-        self.bc.agregar_regla(
+        self.bc.agregar_regla(                                 # Regla 2
             ["paciente tiene fiebre", "paciente tiene erupcion"],
             "posible dengue"
         )
-        self.bc.agregar_regla(
+        self.bc.agregar_regla(                                 # Regla 3
             ["posible gripe", "paciente tiene dolor muscular"],
             "diagnostico gripe"
         )
-        self.bc.agregar_regla(
+        self.bc.agregar_regla(                                 # Regla 4
             ["posible dengue", "paciente tiene dolor cabeza"],
             "diagnostico dengue"
         )
         
     def interfaz_adquisicion(self):
         """Interfaz simple para adquisición de conocimiento"""
-        print("\n=== Adquisición de Conocimiento ===")
-        while True:
-            print("\n1. Agregar hecho")
-            print("2. Agregar regla")
-            print("3. Terminar")
-            opcion = input("Seleccione una opción: ")
+        print("\n=== Adquisición de Conocimiento ===")          # Encabezado
+        while True:                                            # Bucle principal
+            print("\n1. Agregar hecho")                        # Opción 1
+            print("2. Agregar regla")                          # Opción 2
+            print("3. Terminar")                               # Opción 3
+            opcion = input("Seleccione una opción: ")          # Lee opción
             
-            if opcion == "1":
-                hecho = input("Ingrese el hecho a agregar: ")
-                self.bc.agregar_hecho(hecho)
-                print(f"Hecho '{hecho}' agregado.")
-            elif opcion == "2":
+            if opcion == "1":                                  # Agregar hecho
+                hecho = input("Ingrese el hecho a agregar: ")  # Lee hecho
+                self.bc.agregar_hecho(hecho)                   # Añade a base
+                print(f"Hecho '{hecho}' agregado.")             # Confirma
+            elif opcion == "2":                                # Agregar regla
                 print("Ingrese las premisas (una por línea, línea vacía para terminar):")
-                premisas = []
+                premisas = []                                  # Lista para premisas
                 while True:
-                    premisa = input("Premisa: ")
-                    if not premisa:
-                        break
-                    premisas.append(premisa)
+                    premisa = input("Premisa: ")               # Lee premisa
+                    if not premisa:                            # Si línea vacía
+                        break                                 # Termina entrada
+                    premisas.append(premisa)                   # Añade premisa
                 
-                conclusion = input("Ingrese la conclusión: ")
-                self.bc.agregar_regla(premisas, conclusion)
-                print("Regla agregada.")
-            elif opcion == "3":
-                break
+                conclusion = input("Ingrese la conclusión: ")  # Lee conclusión
+                self.bc.agregar_regla(premisas, conclusion)    # Añade regla
+                print("Regla agregada.")                       # Confirma
+            elif opcion == "3":                                # Terminar
+                break                                         # Sale del bucle
     
     def ejecutar_sistema(self):
         """Ejecuta el sistema completo con interfaz de usuario"""
-        print("=== Sistema de Ingeniería del Conocimiento ===")
+        print("=== Sistema de Ingeniería del Conocimiento ===")  # Título
         
         # Cargar ejemplo o adquirir conocimiento
         print("\n¿Desea cargar el ejemplo médico (1) o ingresar conocimiento (2)?")
-        opcion = input("Opción: ")
+        opcion = input("Opción: ")                             # Lee opción
         
-        if opcion == "1":
-            self.cargar_ejemplo_medico()
-            print("Ejemplo médico cargado.")
-        elif opcion == "2":
-            self.interfaz_adquisicion()
+        if opcion == "1":                                      # Cargar ejemplo
+            self.cargar_ejemplo_medico()                       # Ejecuta método
+            print("Ejemplo médico cargado.")                    # Confirma
+        elif opcion == "2":                                    # Ingresar conocimiento
+            self.interfaz_adquisicion()                        # Ejecuta interfaz
         
         # Mostrar estado inicial
         print("\nEstado inicial de la base de conocimiento:")
-        print("Hechos:", self.bc.hechos)
-        print("Reglas:", self.bc.reglas)
+        print("Hechos:", self.bc.hechos)                       # Muestra hechos
+        print("Reglas:", self.bc.reglas)                       # Muestra reglas
         
         # Ejecutar inferencia
-        input("\nPresione Enter para ejecutar inferencia...")
-        nuevos_hechos = self.motor.inferir()
+        input("\nPresione Enter para ejecutar inferencia...")  # Espera usuario
+        nuevos_hechos = self.motor.inferir()                   # Ejecuta inferencia
         
         print("\nResultados de la inferencia:")
-        print("Nuevos hechos derivados:", nuevos_hechos)
-        print("Todos los hechos conocidos:", self.bc.hechos)
+        print("Nuevos hechos derivados:", nuevos_hechos)       # Muestra nuevos hechos
+        print("Todos los hechos conocidos:", self.bc.hechos)    # Muestra todos los hechos
         
         # Explicar un hecho
         hecho_explicar = input("\nIngrese un hecho para explicar (o Enter para salir): ")
-        if hecho_explicar:
-            explicacion = self.motor.explicar(hecho_explicar)
-            if explicacion:
+        if hecho_explicar:                                     # Si se ingresó hecho
+            explicacion = self.motor.explicar(hecho_explicar)   # Genera explicación
+            if explicacion:                                    # Si existe explicación
                 print("\nExplicación:")
-                print(explicacion)
+                print(explicacion)                             # Muestra explicación
             else:
-                print("El hecho no existe en la base de conocimiento.")
+                print("El hecho no existe en la base de conocimiento.")  # Mensaje error
 
 if __name__ == "__main__":
-    sistema = SistemaIngenieriaConocimiento()
-    sistema.ejecutar_sistema()
+    sistema = SistemaIngenieriaConocimiento()                  # Crea sistema
+    sistema.ejecutar_sistema()                                 # Ejecuta sistema principal

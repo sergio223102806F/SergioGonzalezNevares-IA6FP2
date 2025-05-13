@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-                                      # Especifica la codificación del archivo como UTF-8
 """
 Created on Sun Apr 27 16:24:09 2025
 
@@ -11,75 +11,75 @@ para eliminar cuantificadores existenciales mediante la introducción de funcion
 La skolemización es un paso esencial en la conversión a forma normal clausal para la resolución en lógica de primer orden.
 """
 
-from typing import Dict, List, Optional, Set, Union
-from collections import defaultdict
+from typing import Dict, List, Optional, Set, Union                  # Importa tipos para type hints
+from collections import defaultdict                                  # Para diccionarios con valores por defecto
 
 # ==============================================
 # Definición de tipos para términos y fórmulas lógicas
 # ==============================================
 
 # Tipo genérico para términos lógicos (variables, constantes, funciones)
-Term = Union['Variable', 'Constant', 'Function', 'Predicate']
+Term = Union['Variable', 'Constant', 'Function', 'Predicate']       # Unión de tipos para términos
 
 class Variable:
     """Representa una variable en lógica de primer orden"""
     def __init__(self, name: str):
-        self.name = name  # Nombre de la variable (ej. 'X', 'Y')
+        self.name = name                                            # Nombre de la variable (ej. 'X', 'Y')
         
     def __repr__(self):
-        return f"Variable('{self.name}')"  # Representación para debugging
+        return f"Variable('{self.name}')"                           # Representación formal para debugging
     
     def __eq__(self, other):
         # Dos variables son iguales si tienen el mismo nombre
-        return isinstance(other, Variable) and self.name == other.name
+        return isinstance(other, Variable) and self.name == other.name  # Comparación por nombre
     
     def __hash__(self):
         # Permite usar variables en diccionarios y conjuntos
-        return hash(self.name)
+        return hash(self.name)                                      # Hash basado en el nombre
 
 class Constant:
     """Representa una constante en lógica de primer orden"""
     def __init__(self, name: str):
-        self.name = name  # Nombre de la constante (ej. 'a', 'b')
+        self.name = name                                            # Nombre de la constante (ej. 'a', 'b')
         
     def __repr__(self):
-        return f"Constant('{self.name}')"
+        return f"Constant('{self.name}')"                           # Representación formal
     
     def __eq__(self, other):
         # Dos constantes son iguales si tienen el mismo nombre
-        return isinstance(other, Constant) and self.name == other.name
+        return isinstance(other, Constant) and self.name == other.name  # Comparación por nombre
 
 class Function:
     """Representa una función en lógica de primer orden"""
     def __init__(self, name: str, args: List[Term]):
-        self.name = name    # Nombre de la función (ej. 'f', 'g')
-        self.args = args    # Lista de argumentos de la función
+        self.name = name                                            # Nombre de la función (ej. 'f', 'g')
+        self.args = args                                            # Lista de argumentos de la función
         
     def __repr__(self):
-        args_str = ", ".join(map(str, self.args))
-        return f"{self.name}({args_str})"  # Representación como f(X, Y)
+        args_str = ", ".join(map(str, self.args))                   # Convierte args a string
+        return f"{self.name}({args_str})"                           # Representación como f(X, Y)
     
     def __eq__(self, other):
         # Dos funciones son iguales si tienen mismo nombre y argumentos
-        return (isinstance(other, Function) and 
-                self.name == other.name and 
-                self.args == other.args)
+        return (isinstance(other, Function) and                     # Compara tipo
+                self.name == other.name and                          # Compara nombre
+                self.args == other.args)                            # Compara argumentos
 
 class Predicate:
     """Representa un predicado en lógica de primer orden"""
     def __init__(self, name: str, args: List[Term]):
-        self.name = name    # Nombre del predicado (ej. 'P', 'Q')
-        self.args = args     # Lista de argumentos del predicado
+        self.name = name                                            # Nombre del predicado (ej. 'P', 'Q')
+        self.args = args                                            # Lista de argumentos del predicado
         
     def __repr__(self):
-        args_str = ", ".join(map(str, self.args))
-        return f"{self.name}({args_str})"  # Representación como P(X, Y)
+        args_str = ", ".join(map(str, self.args))                   # Convierte args a string
+        return f"{self.name}({args_str})"                           # Representación como P(X, Y)
     
     def __eq__(self, other):
         # Dos predicados son iguales si tienen mismo nombre y argumentos
-        return (isinstance(other, Predicate) and 
-                self.name == other.name and 
-                self.args == other.args)
+        return (isinstance(other, Predicate) and                    # Compara tipo
+                self.name == other.name and                         # Compara nombre
+                self.args == other.args)                            # Compara argumentos
 
 # ==============================================
 # Definición de cuantificadores y fórmulas
@@ -92,20 +92,20 @@ class Quantifier:
 class Forall(Quantifier):
     """Cuantificador universal ∀"""
     def __init__(self, var: Variable, formula: 'Formula'):
-        self.var = var       # Variable cuantificada
-        self.formula = formula  # Fórmula dentro del alcance del cuantificador
+        self.var = var                                             # Variable cuantificada
+        self.formula = formula                                      # Fórmula dentro del alcance
         
     def __repr__(self):
-        return f"∀{self.var}. {self.formula}"  # Representación como ∀X. P(X)
+        return f"∀{self.var}. {self.formula}"                      # Representación como ∀X. P(X)
 
 class Exists(Quantifier):
     """Cuantificador existencial ∃"""
     def __init__(self, var: Variable, formula: 'Formula'):
-        self.var = var       # Variable cuantificada
-        self.formula = formula  # Fórmula dentro del alcance del cuantificador
+        self.var = var                                             # Variable cuantificada
+        self.formula = formula                                      # Fórmula dentro del alcance
         
     def __repr__(self):
-        return f"∃{self.var}. {self.formula}"  # Representación como ∃X. P(X)
+        return f"∃{self.var}. {self.formula}"                      # Representación como ∃X. P(X)
 
 class Formula:
     """Clase base abstracta para fórmulas lógicas"""
@@ -114,18 +114,18 @@ class Formula:
 class AtomicFormula(Formula):
     """Fórmula atómica (predicado)"""
     def __init__(self, predicate: Predicate):
-        self.predicate = predicate  # Predicado que forma la fórmula atómica
+        self.predicate = predicate                                  # Predicado que forma la fórmula
         
     def __repr__(self):
-        return str(self.predicate)  # Representación como P(X)
+        return str(self.predicate)                                  # Representación como P(X)
 
 class Negation(Formula):
     """Negación de una fórmula"""
     def __init__(self, formula: Formula):
-        self.formula = formula  # Fórmula negada
+        self.formula = formula                                      # Fórmula negada
         
     def __repr__(self):
-        return f"¬{self.formula}"  # Representación como ¬P(X)
+        return f"¬{self.formula}"                                   # Representación como ¬P(X)
 
 class Connective(Formula):
     """Clase base abstracta para conectivos lógicos"""
@@ -134,29 +134,29 @@ class Connective(Formula):
 class And(Connective):
     """Conjunción lógica ∧"""
     def __init__(self, left: Formula, right: Formula):
-        self.left = left    # Fórmula izquierda
-        self.right = right  # Fórmula derecha
+        self.left = left                                            # Fórmula izquierda
+        self.right = right                                          # Fórmula derecha
         
     def __repr__(self):
-        return f"({self.left} ∧ {self.right})"  # Representación como (P ∧ Q)
+        return f"({self.left} ∧ {self.right})"                      # Representación como (P ∧ Q)
 
 class Or(Connective):
     """Disyunción lógica ∨"""
     def __init__(self, left: Formula, right: Formula):
-        self.left = left    # Fórmula izquierda
-        self.right = right  # Fórmula derecha
+        self.left = left                                            # Fórmula izquierda
+        self.right = right                                          # Fórmula derecha
         
     def __repr__(self):
-        return f"({self.left} ∨ {self.right})"  # Representación como (P ∨ Q)
+        return f"({self.left} ∨ {self.right})"                      # Representación como (P ∨ Q)
 
 class Implication(Connective):
     """Implicación →"""
     def __init__(self, left: Formula, right: Formula):
-        self.left = left    # Premisa
-        self.right = right  # Conclusión
+        self.left = left                                            # Premisa
+        self.right = right                                          # Conclusión
         
     def __repr__(self):
-        return f"({self.left} → {self.right})"  # Representación como (P → Q)
+        return f"({self.left} → {self.right})"                      # Representación como (P → Q)
 
 # ==============================================
 # Implementación del algoritmo de Skolemización
@@ -169,31 +169,18 @@ class Skolemizer:
     """
     
     def __init__(self):
-        self.skolem_counter = 0  # Contador para generar nombres únicos de funciones Skolem
-        self.quantified_vars = []  # Lista de variables cuantificadas (para seguimiento)
+        self.skolem_counter = 0                                     # Contador para nombres únicos
+        self.quantified_vars = []                                   # Lista de variables cuantificadas
         
     def skolemize(self, formula: Formula) -> Formula:
         """
         Método principal que inicia el proceso de skolemización.
-        
-        Args:
-            formula: Fórmula lógica a skolemizar
-            
-        Returns:
-            Fórmula skolemizada (sin cuantificadores existenciales)
         """
-        return self._skolemize(formula)
+        return self._skolemize(formula)                              # Llama a la función recursiva
         
     def _skolemize(self, formula: Formula, universal_vars: List[Variable] = None) -> Formula:
         """
         Función recursiva que procesa cada tipo de fórmula para aplicar skolemización.
-        
-        Args:
-            formula: Fórmula o subfórmula a procesar
-            universal_vars: Lista de variables universales en el contexto actual
-            
-        Returns:
-            Fórmula procesada con skolemización aplicada
         """
         # Inicializar lista de variables universales si es la primera llamada
         if universal_vars is None:
@@ -230,7 +217,7 @@ class Skolemizer:
             
         # Cuantificador universal: añadir variable al contexto y skolemizar el cuerpo
         elif isinstance(formula, Forall):
-            new_universal_vars = universal_vars + [formula.var]
+            new_universal_vars = universal_vars + [formula.var]     # Añade variable al contexto
             return Forall(formula.var, self._skolemize(formula.formula, new_universal_vars))
             
         # Cuantificador existencial: reemplazar con función de Skolem
@@ -245,20 +232,14 @@ class Skolemizer:
             return self._skolemize(substituted, universal_vars)
             
         else:
-            raise ValueError(f"Tipo de fórmula no soportado: {type(formula)}")
+            raise ValueError(f"Tipo de fórmula no soportado: {type(formula)}")  # Error para tipos no manejados
     
     def _create_skolem_function(self, universal_vars: List[Variable]) -> Function:
         """
         Crea una nueva función de Skolem basada en las variables universales actuales.
-        
-        Args:
-            universal_vars: Lista de variables universales en el contexto actual
-            
-        Returns:
-            Nueva función de Skolem con las variables universales como argumentos
         """
-        self.skolem_counter += 1  # Incrementar contador para nombre único
-        skolem_name = f"sk{self.skolem_counter}"  # Generar nombre (sk1, sk2, ...)
+        self.skolem_counter += 1                                    # Incrementar contador
+        skolem_name = f"sk{self.skolem_counter}"                     # Generar nombre único (sk1, sk2, ...)
         
         if universal_vars:
             # Si hay variables universales, crear función con esos argumentos
@@ -270,18 +251,10 @@ class Skolemizer:
     def _substitute(self, formula: Formula, var: Variable, replacement: Term) -> Formula:
         """
         Sustituye todas las ocurrencias de una variable en una fórmula por un término.
-        
-        Args:
-            formula: Fórmula donde realizar la sustitución
-            var: Variable a reemplazar
-            replacement: Término que reemplazará a la variable
-            
-        Returns:
-            Fórmula con la sustitución aplicada
         """
         # Fórmula atómica: sustituir en los argumentos del predicado
         if isinstance(formula, AtomicFormula):
-            new_args = [replacement if arg == var else arg for arg in formula.predicate.args]
+            new_args = [replacement if arg == var else arg for arg in formula.predicate.args]  # Sustituye args
             return AtomicFormula(Predicate(formula.predicate.name, new_args))
             
         # Negación: sustituir en la subfórmula
@@ -312,15 +285,15 @@ class Skolemizer:
         # Cuantificador: sustituir solo si no es la variable ligada
         elif isinstance(formula, Quantifier):
             if formula.var == var:
-                return formula  # No sustituir variables ligadas con el mismo nombre
+                return formula                                        # No sustituir variables ligadas
             else:
-                new_formula = self._substitute(formula.formula, var, replacement)
+                new_formula = self._substitute(formula.formula, var, replacement)  # Sustituir en subfórmula
                 if isinstance(formula, Forall):
                     return Forall(formula.var, new_formula)
                 else:
                     return Exists(formula.var, new_formula)
         else:
-            raise ValueError(f"Tipo de fórmula no soportado: {type(formula)}")
+            raise ValueError(f"Tipo de fórmula no soportado: {type(formula)}")  # Error para tipos no manejados
 
 # ==============================================
 # Ejemplos de uso y demostración
@@ -330,50 +303,50 @@ def ejemplo_skolemizacion():
     """
     Función que demuestra el proceso de skolemización con varios ejemplos.
     """
-    skolemizer = Skolemizer()
+    skolemizer = Skolemizer()                                      # Crea instancia del skolemizador
     
     # Ejemplo 1: Fórmula simple con cuantificador existencial
-    X = Variable('X')
-    Y = Variable('Y')
-    P = Predicate('P', [X, Y])
-    formula1 = Exists(Y, AtomicFormula(P))
+    X = Variable('X')                                              # Crea variable X
+    Y = Variable('Y')                                              # Crea variable Y
+    P = Predicate('P', [X, Y])                                     # Crea predicado P(X,Y)
+    formula1 = Exists(Y, AtomicFormula(P))                         # Fórmula ∃Y.P(X,Y)
     
-    print("\n=== Ejemplo 1 ===")
-    print("Fórmula original:", formula1)
-    skolemized = skolemizer.skolemize(formula1)
-    print("Fórmula skolemizada:", skolemized)
+    print("\n=== Ejemplo 1 ===")                                   # Encabezado ejemplo
+    print("Fórmula original:", formula1)                           # Muestra fórmula original
+    skolemized = skolemizer.skolemize(formula1)                    # Aplica skolemización
+    print("Fórmula skolemizada:", skolemized)                      # Muestra resultado
     
     # Ejemplo 2: Fórmula con cuantificador universal seguido de existencial
-    formula2 = Forall(X, Exists(Y, AtomicFormula(P)))
+    formula2 = Forall(X, Exists(Y, AtomicFormula(P)))              # Fórmula ∀X.∃Y.P(X,Y)
     
-    print("\n=== Ejemplo 2 ===")
-    print("Fórmula original:", formula2)
-    skolemized = skolemizer.skolemize(formula2)
-    print("Fórmula skolemizada:", skolemized)
+    print("\n=== Ejemplo 2 ===")                                   # Encabezado ejemplo
+    print("Fórmula original:", formula2)                           # Muestra fórmula original
+    skolemized = skolemizer.skolemize(formula2)                    # Aplica skolemización
+    print("Fórmula skolemizada:", skolemized)                      # Muestra resultado
     
     # Ejemplo 3: Fórmula compleja con múltiples cuantificadores anidados
-    Z = Variable('Z')
-    Q = Predicate('Q', [X, Y, Z])
-    formula3 = Exists(X, Forall(Y, Exists(Z, AtomicFormula(Q))))
+    Z = Variable('Z')                                              # Crea variable Z
+    Q = Predicate('Q', [X, Y, Z])                                  # Crea predicado Q(X,Y,Z)
+    formula3 = Exists(X, Forall(Y, Exists(Z, AtomicFormula(Q))))    # Fórmula ∃X.∀Y.∃Z.Q(X,Y,Z)
     
-    print("\n=== Ejemplo 3 ===")
-    print("Fórmula original:", formula3)
-    skolemized = skolemizer.skolemize(formula3)
-    print("Fórmula skolemizada:", skolemized)
+    print("\n=== Ejemplo 3 ===")                                   # Encabezado ejemplo
+    print("Fórmula original:", formula3)                           # Muestra fórmula original
+    skolemized = skolemizer.skolemize(formula3)                    # Aplica skolemización
+    print("Fórmula skolemizada:", skolemized)                      # Muestra resultado
     
     # Ejemplo 4: Fórmula con cuantificador existencial en contexto de universal
-    R = Predicate('R', [X, Y])
-    formula4 = Forall(X, 
+    R = Predicate('R', [X, Y])                                     # Crea predicado R(X,Y)
+    formula4 = Forall(X,                                         # Fórmula ∀X.(¬R(X,Y) ∨ ∃Y.R(X,Y))
                     Or(
                         Negation(AtomicFormula(R)),
                         Exists(Y, AtomicFormula(R))
                     ))
     
-    print("\n=== Ejemplo 4 ===")
-    print("Fórmula original:", formula4)
-    skolemized = skolemizer.skolemize(formula4)
-    print("Fórmula skolemizada:", skolemized)
+    print("\n=== Ejemplo 4 ===")                                   # Encabezado ejemplo
+    print("Fórmula original:", formula4)                           # Muestra fórmula original
+    skolemized = skolemizer.skolemize(formula4)                    # Aplica skolemización
+    print("Fórmula skolemizada:", skolemized)                      # Muestra resultado
 
 if __name__ == "__main__":
-    print("=== Skolemización en Lógica de Primer Orden ===")
-    ejemplo_skolemizacion()
+    print("=== Skolemización en Lógica de Primer Orden ===")        # Título principal
+    ejemplo_skolemizacion()                                         # Ejecuta ejemplos
