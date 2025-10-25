@@ -1,0 +1,16 @@
+{
+    "pares": [
+        {
+            "pregunta": "hola",
+            "respuesta": "¡Hola! ¿Cómo estás?"
+        },
+        {
+            "pregunta": "como estas",
+            "respuesta": "Estoy bien, gracias por preguntar. ¿Y tú?"
+        },
+        {
+            "pregunta": "de que te gustaria hablar",
+            "respuesta": "Me gustaría hablar de tecnología, inteligencia artificial o cualquier tema que te interese."
+        }
+    ]
+}
